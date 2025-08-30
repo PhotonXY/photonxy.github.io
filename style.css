@@ -157,6 +157,10 @@ body:not([data-theme="dark"]) .orders-table tbody tr:nth-child(even){background:
 /* Lokale Bestellübersicht (Textarea) */
 #summary-text{width:100%;min-height:160px;color:var(--text)}
 
+/* Event-Modus Badge */
+.event-badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;color:#333;font-weight:700}
+:root[data-theme="dark"] .event-badge{background:#2a2a2a;color:#eee}
+
 /* Map preview (Admin) */
 .map-preview{width:100%;height:180px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff}
 .map-preview iframe,.map-preview img{width:100%;height:100%;border:0;object-fit:cover}

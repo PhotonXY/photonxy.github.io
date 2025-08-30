@@ -442,7 +442,9 @@ function calcCurrentPrice(){
 function updatePricePreview(){
   const el=document.getElementById('price-preview'); if(!el) return; const info=calcCurrentPrice();
   if(!info){ el.style.display='none'; el.textContent=''; return; }
-  el.style.display='block'; el.textContent=`Preis: CHF ${Number(info.price).toFixed(2)}`;
+  el.style.display='block';
+  const isEvent = !!(document.getElementById('event-mode')?.checked);
+  el.textContent = isEvent ? 'Preis: Event' : `Preis: CHF ${Number(info.price).toFixed(2)}`;
 }
 
 /* =========================================================================
@@ -1026,6 +1028,10 @@ checkOrderDeadline(); const btn=orderForm?.querySelector('button[type="submit"]'
 function updateOrdersTable(){
   if(!ordersTableBody) return;
   ordersTableBody.innerHTML='';
+  const isEvent = !!(document.getElementById('event-mode')?.checked);
+  // Header anpassen
+  const priceHeader=document.querySelector('#orders-table thead th:nth-child(5)');
+  if(priceHeader){ priceHeader.textContent = isEvent? 'Event': 'Preis (CHF)'; }
   orders.forEach((o,idx)=>{
     const tr=document.createElement('tr');
     tr.classList.add('row-add');
@@ -1046,7 +1052,7 @@ function updateOrdersTable(){
       <td><span class="avatar">${initials}</span>${o.name}</td>
       <td>${articleHtml}</td>
       <td>${o.size||''}</td>
-      <td>${o.price.toFixed(2)}</td>
+      <td>${isEvent? '<span class="event-badge">Event</span>': o.price.toFixed(2)}</td>
       <td class="actions-cell"><div class="actions">
         <button class="btn btn--secondary btn-icon btn-edit" data-index="${idx}" aria-label="Bearbeiten" title="Bearbeiten">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1067,7 +1073,7 @@ function updateOrdersTable(){
     ordersTableBody.appendChild(tr);
   });
   const total=orders.reduce((s,o)=>s+(o.price||0),0);
-  if(ordersSummaryDiv) ordersSummaryDiv.textContent=orders.length?`Total: CHF ${total.toFixed(2)}`:'';
+  if(ordersSummaryDiv) ordersSummaryDiv.textContent=orders.length?(isEvent? 'Total: Event': `Total: CHF ${total.toFixed(2)}`):'';
   document.querySelectorAll('.btn-remove').forEach(btn=>btn.addEventListener('click',async e=>{
     const idx=Number(e.currentTarget.getAttribute('data-index'));
     const removed=orders[idx];
@@ -1172,13 +1178,15 @@ function generateSummary(){
   s+=`Lieferant: ${supplierName||'-'} | Tel.: ${supplierPhone||'-'} | Mail: ${supplierEmail||'-'}\n`;
   s+=`Liefertermin: ${d||'-'}, ${t||'-'} Uhr\n`;
     s+='\nBestell-Liste (nach Nummer):\n';
+    const isEvent = !!(document.getElementById('event-mode')?.checked);
     orders.forEach((o,i)=>{
       const baseLabel = o.itemName||o.pizzaName||'';
       s+=`${String(i+1).padStart(2,'0')}. ${o.name} – ${baseLabel}`;
       if(o.size) s+=`, Grösse: ${o.size}`;
       if(o.isGlutenFree && !/glutenfrei/i.test(baseLabel)) s+=`, glutenfrei`;
       if(o.comments) s+=`, Bemerkung: ${o.comments}`;
-      s+=` | CHF ${o.price.toFixed(2)}\n`;
+      if(!isEvent) s+=` | CHF ${o.price.toFixed(2)}`;
+      s+='\n';
     });
     const countsPizza={},countsSalad={},countsDrinks={};
     orders.forEach(o=>{
@@ -1205,7 +1213,7 @@ function generateSummary(){
     s+='— Salate (inkl. Dressing) —\n'; sorted(countsSalad).forEach(([k,v])=>s+=`  ${v}× ${k}\n`);
     s+='— Getränke —\n'; sorted(countsDrinks).forEach(([k,v])=>s+=`  ${v}× ${k}\n`);
     const totalPrice = orders.reduce((sum,o)=>sum+(o.price||0),0);
-    s+=`\nSumme:\nAnzahl Positionen: ${orders.length} | Total: CHF ${totalPrice.toFixed(2)}\n`;
+    s+=`\nSumme:\nAnzahl Positionen: ${orders.length} | Total: ${isEvent? 'Event': `CHF ${totalPrice.toFixed(2)}`}\n`;
 
     summaryTextArea.value=s; summaryOutputSection.style.display='block'; autoResizeTextarea(summaryTextArea);
     return;
@@ -1286,6 +1294,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     const savedAddress=localStorage.getItem('deliveryAddress');
     const savedOrderer=localStorage.getItem('ordererName');
     const savedPhone=localStorage.getItem('ordererPhone');
+    const savedEventMode=localStorage.getItem('eventMode');
     const savedHeader=localStorage.getItem('headerImage');
     const savedSupplierName=localStorage.getItem('supplierName');
     const savedSupplierPhone=localStorage.getItem('supplierPhone');
@@ -1295,6 +1304,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(ordererNameInput&&savedOrderer) ordererNameInput.value=savedOrderer;
     if(ordererPhoneInput&&savedPhone) ordererPhoneInput.value=savedPhone;
     if(headerImageElement&&savedHeader) headerImageElement.src=savedHeader;
+    if(typeof savedEventMode==='string'){ const cb=document.getElementById('event-mode'); if(cb) cb.checked = savedEventMode==='1'; }
     if(supplierNameInput&&savedSupplierName) supplierNameInput.value=savedSupplierName;
     if(supplierPhoneInput&&savedSupplierPhone) supplierPhoneInput.value=savedSupplierPhone;
     if(supplierEmailInput&&savedSupplierEmail) supplierEmailInput.value=savedSupplierEmail;
@@ -1315,6 +1325,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(deliveryAddressInput) localStorage.setItem('deliveryAddress',deliveryAddressInput.value.trim());
     if(ordererNameInput)     localStorage.setItem('ordererName',ordererNameInput.value.trim());
     if(ordererPhoneInput)    localStorage.setItem('ordererPhone',ordererPhoneInput.value.trim());
+    try{ localStorage.setItem('eventMode', document.getElementById('event-mode')?.checked? '1':'0'); }catch(e){}
     if(supplierNameInput)    localStorage.setItem('supplierName',supplierNameInput.value.trim());
     if(supplierPhoneInput)   localStorage.setItem('supplierPhone',supplierPhoneInput.value.trim());
     if(supplierEmailInput)   localStorage.setItem('supplierEmail',supplierEmailInput.value.trim());
@@ -1328,6 +1339,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     localStorage.removeItem('deliveryAddress');
     localStorage.removeItem('ordererName');
     localStorage.removeItem('ordererPhone');
+    localStorage.removeItem('eventMode');
     localStorage.removeItem('supplierName');
     localStorage.removeItem('supplierPhone');
     localStorage.removeItem('supplierEmail');
@@ -1486,6 +1498,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   orderDateInput?.addEventListener('change', ()=>{ saveOrderDateTimeToStorage(); });
   orderTimeInput?.addEventListener('change', ()=>{ saveOrderDateTimeToStorage(); });
+  document.getElementById('event-mode')?.addEventListener('change', ()=>{ try{ localStorage.setItem('eventMode', document.getElementById('event-mode').checked? '1':'0'); }catch(e){} updateOrdersTable(); updatePricePreview(); });
   // Map preview bind
   deliveryAddressInput?.addEventListener('input', debounce(updateDeliveryMap, 400));
   mapsApiKeyInput?.addEventListener('input', debounce(updateDeliveryMap, 400));
