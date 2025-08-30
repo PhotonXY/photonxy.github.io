@@ -10,7 +10,7 @@
    0) Google Sheets Anbindung
    ========================================================================= */
 const GOOGLE_SCRIPT_URL =
-  'https://script.google.com/macros/s/AKfycbweTzSBND_MFpBHQru0KG1RAn5xElqvjMCbfvfSHwjwE0_JT2Er5DCoEt_tT5TxIXAX/exec';
+  'https://script.google.com/macros/s/AKfycbyyJTxpjcKTkUrE8QkKch-n6Cyi2tJWj7JY8JvMcqG065aNJ4D8tTta9EZmv7R4dS3G/exec';
 
 const SECRET_LS_KEY = 'PizzaBestellung';
 let GOOGLE_SHARED_SECRET_RUNTIME = '';
@@ -34,6 +34,10 @@ function getSharedSecret({silent=true}={}){
   const fromUrl=getQueryParam('secret');
   if(fromUrl){ setSharedSecret(fromUrl); return GOOGLE_SHARED_SECRET_RUNTIME; }
   try{
+    // Zentrale Config vom Server holen (falls erreichbar) und anwenden
+    try{
+      (async()=>{ const remoteCfg=await configGetFromServer(); if(remoteCfg) applyConfigToUI(remoteCfg); })();
+    }catch(e){}
     const fromStore=localStorage.getItem(SECRET_LS_KEY);
     if(fromStore){ GOOGLE_SHARED_SECRET_RUNTIME=fromStore; return GOOGLE_SHARED_SECRET_RUNTIME; }
   }catch{}
@@ -180,6 +184,16 @@ const menuPizzaIds = [
 const MENU_PRICE_BASE = 23;
 const GLUTENFREE_SURCHARGE = 1;
 
+// Konfigurations-Keys (werden zentral im Sheet gespeichert)
+const CONFIG_KEYS = [
+  'orderDate','orderTime','ordererName','eventMode','ordererPhone',
+  'deliveryAddress','mapsApiKey',
+  'supplierName','supplierPhone','supplierEmail',
+  'pageTitle','pageDescription','headerImageUrl',
+  'pixabayApiKey',
+  'deadlineDate','deadlineTime'
+];
+
 /* =========================================================================
    2) DOM-Refs
    ========================================================================= */
@@ -209,6 +223,86 @@ const pixabayApiKeyInput=$('#pixabay-api-key'), pixabaySearchInput=$('#pixabay-s
 // Datum/Uhrzeit/Deadline
 const orderDateInput=$('#order-date'), orderTimeInput=$('#order-time');
 const deadlineDateInput=$('#deadline-date'), deadlineTimeInput=$('#deadline-time'), deadlineDisplay=$('#deadline-display'), deadlineWarningDiv=$('#deadline-warning');
+
+/* =========================================================================
+   2b) Zentrale Konfiguration (Server)
+   ========================================================================= */
+function buildConfigFromUI(){
+  const cfg = {};
+  cfg.orderDate = orderDateInput?.value||'';
+  cfg.orderTime = orderTimeInput?.value||'';
+  cfg.ordererName = ordererNameInput?.value||'';
+  cfg.eventMode = document.getElementById('event-mode')?.checked ? '1':'0';
+  cfg.ordererPhone = ordererPhoneInput?.value||'';
+  cfg.deliveryAddress = deliveryAddressInput?.value||'';
+  cfg.mapsApiKey = document.getElementById('maps-api-key')?.value||'';
+  cfg.supplierName = document.getElementById('supplier-name')?.value||'';
+  cfg.supplierPhone = document.getElementById('supplier-phone')?.value||'';
+  cfg.supplierEmail = document.getElementById('supplier-email')?.value||'';
+  cfg.pageTitle = document.getElementById('page-title-input')?.value||'';
+  cfg.pageDescription = document.getElementById('page-description-input')?.value||'';
+  // Header-Bild: benutze gespeicherten Wert oder aktuelles src
+  const headerStored = (function(){ try{ return localStorage.getItem('headerImage')||''; }catch(e){ return ''; } })();
+  cfg.headerImageUrl = headerStored || (document.getElementById('header-image')?.src||'');
+  cfg.pixabayApiKey = document.getElementById('pixabay-api-key')?.value||'';
+  cfg.deadlineDate = document.getElementById('deadline-date')?.value||'';
+  cfg.deadlineTime = document.getElementById('deadline-time')?.value||'';
+  return cfg;
+}
+function applyConfigToUI(cfg){
+  if(!cfg) return;
+  if(cfg.orderDate && orderDateInput) orderDateInput.value = cfg.orderDate;
+  if(cfg.orderTime && orderTimeInput) orderTimeInput.value = cfg.orderTime;
+  if(cfg.ordererName && ordererNameInput) ordererNameInput.value = cfg.ordererName;
+  if(typeof cfg.eventMode!== 'undefined'){ const cb=document.getElementById('event-mode'); if(cb) cb.checked = String(cfg.eventMode)==='1'; }
+  if(cfg.ordererPhone && ordererPhoneInput) ordererPhoneInput.value = cfg.ordererPhone;
+  if(cfg.deliveryAddress && deliveryAddressInput) deliveryAddressInput.value = cfg.deliveryAddress;
+  if(cfg.mapsApiKey) document.getElementById('maps-api-key') && (document.getElementById('maps-api-key').value = cfg.mapsApiKey);
+  if(cfg.supplierName) document.getElementById('supplier-name') && (document.getElementById('supplier-name').value = cfg.supplierName);
+  if(cfg.supplierPhone) document.getElementById('supplier-phone') && (document.getElementById('supplier-phone').value = cfg.supplierPhone);
+  if(cfg.supplierEmail) document.getElementById('supplier-email') && (document.getElementById('supplier-email').value = cfg.supplierEmail);
+  if(cfg.pageTitle) document.getElementById('page-title-input') && (document.getElementById('page-title-input').value = cfg.pageTitle);
+  if(cfg.pageDescription) document.getElementById('page-description-input') && (document.getElementById('page-description-input').value = cfg.pageDescription);
+  if(cfg.headerImageUrl){ if(headerImageElement) headerImageElement.src = cfg.headerImageUrl; try{ localStorage.setItem('headerImage', cfg.headerImageUrl); }catch(e){} }
+  if(cfg.pixabayApiKey) document.getElementById('pixabay-api-key') && (document.getElementById('pixabay-api-key').value = cfg.pixabayApiKey);
+  if(cfg.deadlineDate) document.getElementById('deadline-date') && (document.getElementById('deadline-date').value = cfg.deadlineDate);
+  if(cfg.deadlineTime) document.getElementById('deadline-time') && (document.getElementById('deadline-time').value = cfg.deadlineTime);
+  try{ updateDateTimeDisplay(); updateDeadlineDisplay(); updateDeliveryMap(); updateOrdersTable(); updatePricePreview(); }catch(e){}
+}
+async function configGetFromServer(){
+  try{
+    const url = `${GOOGLE_SCRIPT_URL}?action=configGet`;
+    const res = await fetch(url, {method:'GET'});
+    if(!res.ok) throw new Error('configGet HTTP '+res.status);
+    const data = await res.json();
+    // data expected as { key:value, ... } or {items:[{key,value}]}
+    if(Array.isArray(data?.items)){
+      const obj={}; data.items.forEach(it=>{ if(it && it.key) obj[it.key]=it.value; }); return obj;
+    }
+    return data;
+  }catch(e){ console.warn('configGet fehlgeschlagen:', e); return null; }
+}
+async function configSetOnServer(cfg){
+  try{
+    const secret = getSharedSecret({silent:false});
+    if(!secret){ alert('Kein Secret gesetzt. Speichern abgebrochen.'); return false; }
+    const payload = { action:'configSet', secret, data:{} };
+    CONFIG_KEYS.forEach(k=>{ if(Object.prototype.hasOwnProperty.call(cfg,k)) payload.data[k]=cfg[k]; });
+    const res = await fetch(GOOGLE_SCRIPT_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if(!res.ok) throw new Error('configSet HTTP '+res.status);
+    return true;
+  }catch(e){ console.warn('configSet fehlgeschlagen:', e); alert('Konnte zentrale Einstellungen nicht speichern.'); return false; }
+}
+async function configClearOnServer(){
+  try{
+    const secret = getSharedSecret({silent:false});
+    if(!secret){ alert('Kein Secret gesetzt. Löschen abgebrochen.'); return false; }
+    const url = `${GOOGLE_SCRIPT_URL}?action=configClear&secret=${encodeURIComponent(secret)}`;
+    const res = await fetch(url, {method:'GET'});
+    if(!res.ok) throw new Error('configClear HTTP '+res.status);
+    return true;
+  }catch(e){ console.warn('configClear fehlgeschlagen:', e); alert('Konnte zentrale Einstellungen nicht löschen.'); return false; }
+}
 
 /* =========================================================================
    3) State & Helpers
