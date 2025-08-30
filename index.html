@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="de-CH">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="KAIZEN-Pizza-Day: Interne Bestellseite zum Erfassen, Verwalten und Exportieren von Pizza-Bestellungen (CH)." />
+  <meta name="theme-color" content="#e06a2c" />
+  <meta name="color-scheme" content="light dark" />
+  <title>KAIZEN-Pizza-Day – Pizza bestellen</title>
+  <link rel="stylesheet" href="style.css"/>
+  </head>
+<body>
+  <header class="header">
+    <button id="theme-toggle" class="theme-toggle" aria-pressed="false" aria-label="Dark Mode umschalten">🌙</button>
+    <img id="header-image" data-default="pizza-illustration.png" src="pizza-illustration.png" alt="Illustration einer Pizza" class="header-image"/>
+    <h1 id="page-title">KAIZEN-Pizza-Day – Pizza bestellen 🍕</h1>
+    <p id="page-description">
+      Als kleines Dankeschön für euren Einsatz, eure Ideen und dafür, dass ihr unsere Firma jeden Tag ein Stück besser macht, spendiert euch die Geschäftsleitung eine Pizza.
+    </p>
+  </header>
+
+  <!-- fuer alle sichtbare Bestell-Infos -->
+  <section class="order-info">
+    <p><strong>Bestelldatum:</strong> <span id="display-date">–</span>,
+       <strong>Lieferzeit:</strong> <span id="display-time">–</span></p>
+  </section>
+
+  <!-- ADMIN - Einstellungen -->
+  <section id="admin-section" class="admin" style="display:none;">
+    <h2>Adminansicht &amp; Einstellungen</h2>
+    <p>Hier legst du Bestellzeitpunkt, Kontakt und Darstellung fest.</p>
+
+    <div class="grid-2">
+      <div class="field-group">
+        <label for="order-date">Datum:</label>
+        <input type="date" id="order-date"/>
+      </div>
+      <div class="field-group">
+        <label for="order-time">Uhrzeit:</label>
+        <input type="time" id="order-time" value="12:00"/>
+      </div>
+
+      <div class="field-group">
+        <label for="orderer-name">Besteller (Name):</label>
+        <input type="text" id="orderer-name" placeholder="Name des Bestellers"/>
+      </div>
+      <div class="field-group">
+        <label for="orderer-phone">Telefonnummer:</label>
+        <input type="tel" id="orderer-phone" placeholder="077 400 40 40"/>
+      </div>
+
+      <div class="field-group">
+        <label for="delivery-address">Lieferadresse:</label>
+        <input type="text" id="delivery-address" placeholder="Firma, Strasse, Ort"/>
+      </div>
+      <div class="field-group">
+        <label>Adresskarte:</label>
+        <div id="delivery-map" class="map-preview" style="display:none;" aria-hidden="true">
+          <img id="delivery-map-img" alt="Kartenansicht der Lieferadresse" loading="lazy" style="display:none;"/>
+          <iframe id="delivery-map-frame" title="Lieferadresse Karte" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+        </div>
+      </div>
+      <div class="field-group">
+        <label for="maps-api-key">Google Maps Static API Key (optional):</label>
+        <input type="text" id="maps-api-key" placeholder="Für statische Karte (höhere Zuverlässigkeit)"/>
+      </div>
+
+      <div class="field-group field-group--full">
+        <h3 class="subheading">Lieferantendaten</h3>
+      </div>
+
+
+      <div class="field-group">
+        <label for="supplier-name">Lieferant (Name):</label>
+        <input type="text" id="supplier-name" placeholder="z. B. dieci Rapperswil"/>
+      </div>
+      <div class="field-group">
+        <label for="supplier-phone">Telefon Lieferant:</label>
+        <input type="tel" id="supplier-phone" value="055 221 80 10"/>
+      </div>
+      <div class="field-group">
+        <label for="supplier-email">E‑Mail Lieferant:</label>
+        <input type="email" id="supplier-email" value="info@dieci.ch"/>
+      </div>
+
+      <div class="field-group">
+        <label for="page-title-input">Seitentitel:</label>
+        <input type="text" id="page-title-input" placeholder="Seitentitel festlegen"/>
+      </div>
+      <div class="field-group">
+        <label for="page-description-input">Seitenbeschreibung:</label>
+        <input type="text" id="page-description-input" placeholder="Beschreibung festlegen"/>
+      </div>
+
+      <div class="field-group">
+        <label for="header-image-input">Header-Bild wählen:</label>
+        <input type="file" id="header-image-input" accept="image/*"/>
+      </div>
+      <div class="field-group">
+        <button type="button" id="reset-header-image" class="btn btn--secondary">Header-Bild zurücksetzen</button>
+      </div>
+
+      <!-- Pixabay Suche (optional) -->
+      <div class="field-group field-group--full">
+        <h3 class="subheading">Header-Bild über Pixabay wählen (optional)</h3>
+      </div>
+      <div class="field-group">
+        <label for="pixabay-api-key">Pixabay API Key:</label>
+        <input type="text" id="pixabay-api-key" placeholder="Pixabay API Key eingeben"/>
+      </div>
+      <div class="field-group">
+        <label for="pixabay-search">Suche:</label>
+        <div class="pixabay-toolbar">
+          <input type="text" id="pixabay-search" placeholder="z. B. pizza, team, office"/>
+          <button type="button" id="pixabay-search-btn" class="btn btn--secondary">Suchen</button>
+        </div>
+      </div>
+      <div class="field-group field-group--full">
+        <div id="pixabay-results" class="pixabay-grid" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <button type="button" id="save-admin-data" class="btn btn--secondary">Admin-Daten speichern</button>
+      <button type="button" id="clear-admin-data" class="btn btn--secondary">Admin-Daten löschen</button>
+      <button type="button" id="reset-order-datetime" class="btn btn--secondary">Datum/Uhrzeit zurücksetzen</button>
+      <button type="button" id="clear-orders-btn" class="btn btn--secondary">Alle Bestellungen löschen</button>
+    </div>
+
+    <div class="grid-2">
+      <div class="field-group">
+        <label for="deadline-date">Bestellschluss Datum:</label>
+        <input type="date" id="deadline-date"/>
+      </div>
+      <div class="field-group">
+        <label for="deadline-time">Bestellschluss Uhrzeit:</label>
+        <input type="time" id="deadline-time"/>
+      </div>
+    </div>
+
+    <!-- Serverdaten -->
+    <h3>Serverdaten (Google Sheet)</h3>
+    <div class="remote-actions">
+      <button id="load-remote-btn" class="btn btn--primary">Bestellungen vom Sheet laden</button>
+      <button id="download-remote-csv-btn" class="btn btn--secondary">CSV (vom Sheet) herunterladen</button>
+      <button id="change-secret" class="btn btn--secondary">Secret ändern</button>
+      <button id="refresh-remote-summary" class="btn btn--secondary">Übersicht aktualisieren</button>
+    </div>
+
+    <div id="remote-status" class="remote-status">–</div>
+    <div id="remote-progress" class="remote-progress" aria-hidden="true">
+      <div id="remote-progress-bar" class="remote-progress__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+    </div>
+
+    <div class="remote-wrapper">
+      <table id="remote-orders-table" class="orders-table remote-table">
+        <thead>
+          <tr>
+            <th class="col-nr">Nr.</th>
+            <th>Name</th>
+            <th>Artikel</th>
+            <th>Grösse</th>
+            <th>Preis (CHF)</th>
+            <th>Aktion</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div id="remote-total" class="remote-total"></div>
+
+      <div class="remote-summary-tools">
+        <button id="copy-remote-summary" class="btn btn--secondary">In Zwischenablage kopieren</button>
+        <button id="email-remote-summary" class="btn btn--secondary" aria-label="Bestellung senden">Bestellung senden</button>
+        <button id="print-remote-summary" class="btn btn--secondary" aria-label="Drucken">Drucken</button>
+      </div>
+
+      <textarea id="remote-summary-text" class="remote-summary-box" rows="8" placeholder="Zusammenfassung vom Google Sheet …"></textarea>
+    </div>
+  </section>
+
+  <!-- Admin Login Modal -->
+  <div id="admin-login" class="modal" style="display:none;">
+    <div class="modal__content">
+      <h3>Admin-Login</h3>
+      <div class="password-field">
+        <label for="admin-password-input">Passwort:</label>
+        <div class="password-input-wrap">
+          <input type="password" id="admin-password-input" placeholder="Admin-Passwort" />
+          <button type="button" id="admin-password-toggle" class="btn btn--secondary btn-icon" aria-label="Passwort anzeigen/verbergen" title="Passwort anzeigen/verbergen">👁️</button>
+        </div>
+      </div>
+      <div class="field-row">
+        <button id="admin-login-confirm" class="btn btn--primary">Anmelden</button>
+        <button id="admin-login-cancel" class="btn btn--secondary">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formular fuer neue Bestellung -->
+  <section class="order-form">
+    <div class="form-header">
+      <h2>Bestellung aufgeben</h2>
+      <button id="toggle-admin" class="btn btn--secondary" aria-expanded="false">⚙️ Settings</button>
+    </div>
+
+    <p id="deadline-display" class="deadline-display" style="display:none;"></p>
+
+    <form id="pizza-form">
+      <div id="deadline-warning" class="deadline-warning" style="display:none;">
+        Der Bestellschluss ist erreicht – keine neuen Bestellungen mehr möglich.
+      </div>
+
+      <div class="field-group">
+        <label for="person-name">Dein Name:</label>
+        <input type="text" id="person-name" required placeholder="Name eingeben"/>
+      </div>
+
+      <div class="field-group order-type">
+        <label>Bestellart:</label>
+        <div class="order-type-choices">
+          <label class="choice choice--pizza"><input type="radio" name="order-type" value="pizza" checked/> Pizza</label>
+          <label class="choice choice--salad"><input type="radio" name="order-type" value="salad"/> Salat</label>
+          <label class="choice choice--menu"><input type="radio" name="order-type" value="menu"/> Menü</label>
+        </div>
+      </div>
+
+      <div class="field-group" id="pizza-selection">
+        <label for="pizza-select">Pizza auswählen:</label>
+        <select id="pizza-select"><option value="" disabled selected>Bitte Pizza wählen…</option></select>
+        <div id="pizza-ingredients" class="selection-details" style="display:none;"></div>
+      </div>
+
+      <div class="field-group" id="salad-selection" style="display:none;">
+        <label for="salad-select">Salat auswählen:</label>
+        <select id="salad-select"><option value="" disabled selected>Bitte Salat wählen…</option></select>
+        <div id="salad-ingredients" class="selection-details" style="display:none;"></div>
+      </div>
+
+      <div class="field-group" id="dressing-selection" style="display:none;">
+        <label for="dressing-select">Dressing wählen:</label>
+        <select id="dressing-select"><option value="" disabled selected>Bitte Dressing wählen…</option></select>
+      </div>
+
+      <div class="field-group" id="drink-selection" style="display:none;">
+        <label for="drink-select">Getränk wählen:</label>
+        <select id="drink-select"><option value="" disabled selected>Bitte Getränk wählen…</option></select>
+      </div>
+
+      <div class="field-group" id="size-group">
+        <label for="pizza-size">Grösse:</label>
+        <select id="pizza-size">
+          <option value="30cm" selected>Normal 30 cm</option>
+          <option value="24cm">Klein 24 cm</option>
+          <!-- <option value="40cm">Gross 40 cm</option> -->
+        </select>
+      </div>
+
+      <div class="field-group" id="gluten-free-group" style="display:none;">
+        <label><input type="checkbox" id="gluten-free"/> Glutenfrei (+1 CHF)</label>
+      </div>
+
+      <div class="field-group">
+        <label for="comments">Bemerkungen (optional):</label>
+        <input type="text" id="comments" placeholder="z. B. ohne Zwiebeln"/>
+      </div>
+
+      <p id="price-preview" class="price-preview" aria-live="polite" style="display:none;">Preis: –</p>
+
+      <button type="submit" class="btn btn--primary">Bestellung hinzufügen</button>
+    </form>
+  </section>
+
+  <!-- lokale Uebersicht -->
+  <section class="orders-overview">
+    <h2>Aktuelle Bestellungen</h2>
+    <div class="table-wrap">
+      <table id="orders-table" class="orders-table">
+        <thead>
+          <tr>
+            <th>Nr.</th>
+            <th>Name</th>
+            <th>Artikel</th>
+            <th>Grösse</th>
+            <th>Preis (CHF)</th>
+            <th>Aktion</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="orders-summary" class="total"></div>
+    <div class="button-row">
+      <button id="generate-summary" class="btn btn--secondary">Übersicht generieren</button>
+      <button id="download-csv" class="btn btn--secondary">CSV herunterladen</button>
+      <button id="email-summary" class="btn btn--secondary" aria-label="Bestellung senden">Bestellung senden</button>
+      <button id="print-summary" class="btn btn--secondary" aria-label="Drucken">Drucken</button>
+    </div>
+  </section>
+
+  <!-- generierte Zusammenfassung -->
+  <section id="summary-output" class="summary-output" style="display:none;">
+    <h2>Bestellübersicht</h2>
+    <p>Diese Übersicht fasst alle Bestellungen zusammen. Kopiere den Text oder sende ihn direkt per E-Mail.</p>
+    <textarea id="summary-text" rows="10" readonly></textarea>
+    <div class="button-row">
+      <button id="copy-summary" class="btn btn--primary">In Zwischenablage kopieren</button>
+      <button id="email-summary-2" class="btn btn--secondary" aria-label="Bestellung senden">Bestellung senden</button>
+      <button id="print-summary-2" class="btn btn--secondary" aria-label="Drucken">Drucken</button>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p>
+      Bestellinhalt basierend auf Angaben von
+      <a href="https://www.dieci.ch/de/menu" target="_blank" rel="noopener">dieci.ch</a>.
+      &copy; 2025 Stephan Stucki
+    </p>
+  </footer>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite" style="display:none;"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
