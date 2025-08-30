@@ -28,7 +28,19 @@ function ensureSharedSecret({forcePrompt=false}={}){
   if(typed!==null) setSharedSecret(typed);
   return GOOGLE_SHARED_SECRET_RUNTIME;
 }
-function getSharedSecret(){ if(!GOOGLE_SHARED_SECRET_RUNTIME) ensureSharedSecret(); return GOOGLE_SHARED_SECRET_RUNTIME; }
+function getSharedSecret({silent=true}={}){
+  if(GOOGLE_SHARED_SECRET_RUNTIME) return GOOGLE_SHARED_SECRET_RUNTIME;
+  // Versuche still aus URL oder localStorage zu lesen, ohne Prompt
+  const fromUrl=getQueryParam('secret');
+  if(fromUrl){ setSharedSecret(fromUrl); return GOOGLE_SHARED_SECRET_RUNTIME; }
+  try{
+    const fromStore=localStorage.getItem(SECRET_LS_KEY);
+    if(fromStore){ GOOGLE_SHARED_SECRET_RUNTIME=fromStore; return GOOGLE_SHARED_SECRET_RUNTIME; }
+  }catch{}
+  // Wenn explizit nicht still, dann nachfragen; sonst leer zurueckgeben
+  if(!silent) return ensureSharedSecret();
+  return '';
+}
 
 /* =========================================================================
    1) Stammdaten
@@ -969,7 +981,6 @@ checkOrderDeadline(); const btn=orderForm?.querySelector('button[type="submit"]'
   // Eindeutige Client-ID fuer spaetere Referenz (Remote-Loeschung)
   orderObj.clientId = orderObj.clientId || (`c_${Date.now()}_${Math.random().toString(36).slice(2,8)}`);
   orders.push(orderObj); saveOrdersToStorage(); updateOrdersTable();
-  ensureSharedSecret();
   if(btn) setBtnLoading(btn,true,'Sende…');
   if(orderForm) orderForm.setAttribute('aria-busy','true');
   try{
@@ -1192,7 +1203,6 @@ function downloadCsv(){
    10) Init
    ========================================================================= */
 document.addEventListener('DOMContentLoaded',()=>{
-  ensureSharedSecret();
   // Theme init
   try{
     const savedTheme=localStorage.getItem('theme');
