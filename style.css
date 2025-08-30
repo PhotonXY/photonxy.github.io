@@ -32,6 +32,8 @@ section{max-width:1100px;margin:12px auto;padding:16px}
 .admin{background:var(--card);border:1px solid var(--border);border-radius:12px}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .field-group{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.field-group input, .field-group select, .field-group textarea{width:100%}
+.field-group input[type="checkbox"]{width:auto}
 .time-inline{display:flex;gap:8px;align-items:center}
 .time-inline select{min-width:150px;display:none}
 
@@ -271,6 +273,14 @@ select.is-placeholder{ color: var(--muted) }
 }
 @supports (-webkit-touch-callout: none){
   .modal input, .modal select, .modal textarea{ font-size:16px }
+}
+
+/* Responsive Fixes for small screens */
+@media (max-width: 680px){
+  .grid-2{grid-template-columns:1fr}
+  .pixabay-toolbar{flex-direction:column;align-items:stretch}
+  .pixabay-toolbar input, .pixabay-toolbar button{width:100%}
+  .btn-grid{grid-template-columns:1fr !important}
 }
 
 /* Avatars + row animations */
