@@ -251,8 +251,36 @@ function buildConfigFromUI(){
 }
 function applyConfigToUI(cfg){
   if(!cfg) return;
-  if(cfg.orderDate && orderDateInput) orderDateInput.value = cfg.orderDate;
-  if(cfg.orderTime && orderTimeInput) orderTimeInput.value = cfg.orderTime;
+  // Helpers to normalize server date/time strings like
+  // "Tue Sep 30 2025 00:00:00 GMT+0200 (...)" or plain "2025-09-30"
+  const toYYYYMMDD = (v)=>{
+    if(!v) return '';
+    try{
+      // if already yyyy-mm-dd
+      if(/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return String(v);
+      const d=new Date(String(v));
+      if(isNaN(d)) return '';
+      const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const da=String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${da}`;
+    }catch{ return ''; }
+  };
+  const toHHMM = (v)=>{
+    if(!v) return '';
+    const s=String(v).trim();
+    // Accept "08:00"
+    if(/^\d{1,2}:\d{2}$/.test(s)){
+      const [h,m]=s.split(':'); return `${String(h).padStart(2,'0')}:${m}`;
+    }
+    try{
+      const d=new Date(s);
+      if(isNaN(d)) return '';
+      const hh=String(d.getHours()).padStart(2,'0'); const mm=String(d.getMinutes()).padStart(2,'0');
+      return `${hh}:${mm}`;
+    }catch{ return ''; }
+  };
+
+  if(cfg.orderDate && orderDateInput) orderDateInput.value = toYYYYMMDD(cfg.orderDate);
+  if(cfg.orderTime && orderTimeInput) orderTimeInput.value = toHHMM(cfg.orderTime);
   if(cfg.ordererName && ordererNameInput) ordererNameInput.value = cfg.ordererName;
   if(typeof cfg.eventMode!== 'undefined'){ const cb=document.getElementById('event-mode'); if(cb) cb.checked = String(cfg.eventMode)==='1'; }
   if(cfg.ordererPhone && ordererPhoneInput) ordererPhoneInput.value = cfg.ordererPhone;
@@ -261,12 +289,18 @@ function applyConfigToUI(cfg){
   if(cfg.supplierName) document.getElementById('supplier-name') && (document.getElementById('supplier-name').value = cfg.supplierName);
   if(cfg.supplierPhone) document.getElementById('supplier-phone') && (document.getElementById('supplier-phone').value = cfg.supplierPhone);
   if(cfg.supplierEmail) document.getElementById('supplier-email') && (document.getElementById('supplier-email').value = cfg.supplierEmail);
-  if(cfg.pageTitle) document.getElementById('page-title-input') && (document.getElementById('page-title-input').value = cfg.pageTitle);
-  if(cfg.pageDescription) document.getElementById('page-description-input') && (document.getElementById('page-description-input').value = cfg.pageDescription);
+  if(cfg.pageTitle){
+    if(document.getElementById('page-title-input')) document.getElementById('page-title-input').value = cfg.pageTitle;
+    if(typeof pageTitleElement !== 'undefined' && pageTitleElement) pageTitleElement.textContent = cfg.pageTitle;
+  }
+  if(cfg.pageDescription){
+    if(document.getElementById('page-description-input')) document.getElementById('page-description-input').value = cfg.pageDescription;
+    if(typeof pageDescriptionElement !== 'undefined' && pageDescriptionElement) pageDescriptionElement.textContent = cfg.pageDescription;
+  }
   if(cfg.headerImageUrl){ if(headerImageElement) headerImageElement.src = cfg.headerImageUrl; try{ localStorage.setItem('headerImage', cfg.headerImageUrl); }catch(e){} }
   if(cfg.pixabayApiKey) document.getElementById('pixabay-api-key') && (document.getElementById('pixabay-api-key').value = cfg.pixabayApiKey);
-  if(cfg.deadlineDate) document.getElementById('deadline-date') && (document.getElementById('deadline-date').value = cfg.deadlineDate);
-  if(cfg.deadlineTime) document.getElementById('deadline-time') && (document.getElementById('deadline-time').value = cfg.deadlineTime);
+  if(cfg.deadlineDate) document.getElementById('deadline-date') && (document.getElementById('deadline-date').value = toYYYYMMDD(cfg.deadlineDate));
+  if(cfg.deadlineTime) document.getElementById('deadline-time') && (document.getElementById('deadline-time').value = toHHMM(cfg.deadlineTime));
   try{ updateDateTimeDisplay(); updateDeadlineDisplay(); updateDeliveryMap(); updateOrdersTable(); updatePricePreview(); }catch(e){}
 }
 async function configGetFromServer(){
@@ -1279,7 +1313,11 @@ function toggleAdminSection(){
 function ensureRemoteUI(){
   $('#load-remote-btn')?.addEventListener('click', loadOrdersFromGoogle);
   $('#download-remote-csv-btn')?.addEventListener('click', downloadRemoteCsv);
-  $('#change-secret')?.addEventListener('click', ()=>{ ensureSharedSecret({forcePrompt:true}); alert('Secret aktualisiert.'); });
+  $('#change-secret')?.addEventListener('click', async ()=>{
+    ensureSharedSecret({forcePrompt:true});
+    alert('Secret aktualisiert.');
+    try{ const cfg=await configGetFromServer(); if(cfg) applyConfigToUI(cfg); }catch(e){}
+  });
   $('#refresh-remote-summary')?.addEventListener('click', ()=>{ loadOrdersFromGoogle(); });
 }
 
@@ -1438,6 +1476,13 @@ document.addEventListener('DOMContentLoaded',()=>{
     loadOrdersFromStorage(); if(orders.length) updateOrdersTable();
   }catch(e){}
   updateDeliveryMap();
+  // Lade zentrale Config zuletzt, damit sie lokale Werte überschreibt
+  (async()=>{
+    try{
+      const remoteCfg = await configGetFromServer();
+      if(remoteCfg) applyConfigToUI(remoteCfg);
+    }catch(e){ console.warn('Init: Konnte zentrale Config nicht laden:', e); }
+  })();
 
   if(ordererPhoneInput){
     ordererPhoneInput.addEventListener('blur',()=>{
