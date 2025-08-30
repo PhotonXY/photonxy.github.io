@@ -288,19 +288,29 @@ async function configSetOnServer(cfg){
     if(!secret){ alert('Kein Secret gesetzt. Speichern abgebrochen.'); return false; }
     const payload = { action:'configSet', secret, data:{} };
     CONFIG_KEYS.forEach(k=>{ if(Object.prototype.hasOwnProperty.call(cfg,k)) payload.data[k]=cfg[k]; });
-    const res = await fetch(GOOGLE_SCRIPT_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-    if(!res.ok) throw new Error('configSet HTTP '+res.status);
-    return true;
-  }catch(e){ console.warn('configSet fehlgeschlagen:', e); alert('Konnte zentrale Einstellungen nicht speichern.'); return false; }
+    try{
+      const res = await fetch(GOOGLE_SCRIPT_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if(res.ok) return true;
+      throw new Error('configSet HTTP '+res.status);
+    }catch(e1){
+      await fetch(GOOGLE_SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      return true;
+    }
+  }catch(e){ console.warn('configSet fehlgeschlagen:', e); alert('Konnte zentrale Einstellungen nicht speichern. Bitte Secret/Netz prüfen.'); return false; }
 }
 async function configClearOnServer(){
   try{
     const secret = getSharedSecret({silent:false});
     if(!secret){ alert('Kein Secret gesetzt. Löschen abgebrochen.'); return false; }
     const url = `${GOOGLE_SCRIPT_URL}?action=configClear&secret=${encodeURIComponent(secret)}`;
-    const res = await fetch(url, {method:'GET'});
-    if(!res.ok) throw new Error('configClear HTTP '+res.status);
-    return true;
+    try{
+      const res = await fetch(url, {method:'GET'});
+      if(res.ok) return true;
+      throw new Error('configClear HTTP '+res.status);
+    }catch(e1){
+      await fetch(url, {method:'GET', mode:'no-cors'});
+      return true;
+    }
   }catch(e){ console.warn('configClear fehlgeschlagen:', e); alert('Konnte zentrale Einstellungen nicht löschen.'); return false; }
 }
 
@@ -1415,7 +1425,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     });
   }
 
-  $('#save-admin-data')?.addEventListener('click',()=>{
+  $('#save-admin-data')?.addEventListener('click', async ()=>{
+    const btn = document.getElementById('save-admin-data');
+    // 1) Lokal cachen
     if(deliveryAddressInput) localStorage.setItem('deliveryAddress',deliveryAddressInput.value.trim());
     if(ordererNameInput)     localStorage.setItem('ordererName',ordererNameInput.value.trim());
     if(ordererPhoneInput)    localStorage.setItem('ordererPhone',ordererPhoneInput.value.trim());
@@ -1427,9 +1439,23 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(orderDateInput)       localStorage.setItem('orderDate',orderDateInput.value||'');
     if(orderTimeInput)       localStorage.setItem('orderTime',orderTimeInput.value||'');
     saveDeadlineToStorage();
-    alert('Admin-Daten gespeichert.');
+    // 2) Zentral speichern
+    try{ setBtnLoading(btn,true,'Speichere…'); }catch(e){}
+    const cfg = buildConfigFromUI();
+    const ok = await configSetOnServer(cfg);
+    try{ setBtnLoading(btn,false); }catch(e){}
+    if(ok){ showToast('Admin-Daten zentral gespeichert.'); }
+    else { alert('Konnte zentrale Einstellungen nicht speichern. Bitte Secret/Netz prüfen.'); }
   });
-  $('#clear-admin-data')?.addEventListener('click',()=>{
+  $('#clear-admin-data')?.addEventListener('click', async ()=>{
+    if(!confirm('Admin-Daten wirklich löschen (zentral und lokal)?')) return;
+    const btn = document.getElementById('clear-admin-data');
+    // Zentral löschen
+    try{ setBtnLoading(btn,true,'Lösche…'); }catch(e){}
+    const ok = await configClearOnServer();
+    try{ setBtnLoading(btn,false); }catch(e){}
+    if(!ok){ alert('Konnte zentrale Einstellungen nicht löschen. Bitte Secret/Netz prüfen.'); return; }
+    // Lokal löschen
     localStorage.removeItem('deliveryAddress');
     localStorage.removeItem('ordererName');
     localStorage.removeItem('ordererPhone');
@@ -1440,7 +1466,14 @@ document.addEventListener('DOMContentLoaded',()=>{
     localStorage.removeItem('mapsApiKey');
     localStorage.removeItem('orderDeadlineDate');
     localStorage.removeItem('orderDeadlineTime');
-    alert('Gespeicherte Admin-Daten gelöscht.');
+    showToast('Admin-Daten gelöscht.');
+    // UI zurücksetzen
+    try{
+      ['order-date','order-time','orderer-name','orderer-phone','delivery-address','maps-api-key','supplier-name','supplier-phone','supplier-email','page-title-input','page-description-input','pixabay-api-key','deadline-date','deadline-time']
+        .forEach(id=>{ const el=document.getElementById(id); if(el){ el.value=''; } });
+      const ev=document.getElementById('event-mode'); if(ev) ev.checked=false;
+      updateDateTimeDisplay(); updateDeadlineDisplay(); updateDeliveryMap(); updateOrdersTable(); updatePricePreview();
+    }catch(e){}
   });
 
   // Alle lokalen Bestellungen löschen (und remote, falls unterstützt)
