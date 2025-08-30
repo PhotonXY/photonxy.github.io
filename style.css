@@ -49,6 +49,9 @@ label{font-weight:600}
 input,select,textarea{
   padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;
 }
+/* Neutrale Checkbox-Farbe (vermeidet blau) */
+body:not([data-theme="dark"]) input[type="checkbox"]{ accent-color:#666 }
+:root[data-theme="dark"] input[type="checkbox"]{ accent-color:#b3b3b3 }
 /* Light mode: stärkere Lesbarkeit in Feldern */
 body:not([data-theme="dark"]) input,
 body:not([data-theme="dark"]) select,

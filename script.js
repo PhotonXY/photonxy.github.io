@@ -392,14 +392,14 @@ function calcCurrentPrice(){
   if(type==='pizza'){
     const pizzaId=pizzaSelect?.value||''; const size=sizeSelect?.value||''; if(!pizzaId||!size) return null;
     const isGF=!!glutenFreeCheckbox?.checked; let price=getPrice(pizzaId,size); if(isGF) price+=GLUTENFREE_SURCHARGE;
-    return {price,label:`Pizza`,details:`${size}${isGF?' · glutenfrei':''}`};
+    return {price,label:`Pizza`,details:`${size}${isGF?', glutenfrei':''}`};
   }else if(type==='salad'){
     const saladId=saladSelect?.value||''; const dressingId=dressingSelect?.value||''; if(!saladId||!dressingId) return null;
     const price=getSaladPrice(saladId); return {price,label:'Salat',details:''};
   }else if(type==='menu'){
     const pizzaId=pizzaSelect?.value||''; const dressingId=dressingSelect?.value||''; const drinkId=drinkSelect?.value||''; if(!pizzaId||!dressingId||!drinkId) return null;
     const isGF=!!glutenFreeCheckbox?.checked; let price=MENU_PRICE_BASE+(isGF?GLUTENFREE_SURCHARGE:0);
-    return {price,label:'Menü',details:`${isGF?'glutenfrei':''}`};
+    return {price,label:'Menü',details:`${isGF?', glutenfrei':''}`};
   }
   return null;
 }
@@ -501,13 +501,14 @@ function getSaladPrice(id){ const base=getPrice(id,'24cm'); return base+0.5; }
    6) Google Sheets – POST/GET (+ JSONP)
    ========================================================================= */
 async function sendOrderToGoogle(order){
+  const pizzaBase = (order.pizzaName||'').replace(/\s*\(glutenfrei\)\s*/i,'').trim();
   const payload={
     Secret:getSharedSecret(),
     Action:'create',
     ClientId:order.clientId||'',
     Person:order.name||'',
     Bestellart:order.orderType||'',
-    Pizza:order.pizzaName||'',
+    Pizza:pizzaBase,
     Groesse:order.size||'',
     Glutenfrei:!!order.isGlutenFree,
     Salat:order.saladName||'',
@@ -658,9 +659,10 @@ function renderRemoteTable(data){
   const state = window.__REMOTE_SORT__ || {col:0,dir:1};
   const artikelStr = (r)=>{
     const art=String(r.Bestellart||'').toLowerCase(); const gf=!!r.Glutenfrei;
+    const hasGfTag=/glutenfrei/i.test(String(r.Pizza||''));
     if(art==='salad') return `Salat: ${r.Salat||''}, ${r.Dressing||''}`;
-    if(art==='menu') return `Menü: ${(r.Pizza||'')}${gf?' (glutenfrei)':''}, ${(r.Salat||'')} (${r.Dressing||''}), ${(r.Getraenk||'')}`;
-    return `${r.Pizza||''}${gf?' (glutenfrei)':''}`;
+    if(art==='menu') return `Menü: ${(r.Pizza||'')}, ${(r.Salat||'')} (${r.Dressing||''}), ${(r.Getraenk||'')}${gf&&!hasGfTag?', glutenfrei':''}`;
+    return `${r.Pizza||''}${gf&&!hasGfTag?', glutenfrei':''}`;
   };
   const getter = [
     r=>parseInt(String(r.BestellNr||0).toString().replace(/\D/g,''))||0,
@@ -686,9 +688,11 @@ function renderRemoteTable(data){
     if(art==='salad'){
       artikel = `Salat: ${r.Salat||''}, ${r.Dressing||''}`;
     }else if(art==='menu'){
-      artikel = `Menü: ${(r.Pizza||'')}${gf?' (glutenfrei)':''}, ${(r.Salat||'')} (${r.Dressing||''}), ${(r.Getraenk||'')}`;
+      const hasGfTag=/glutenfrei/i.test(String(r.Pizza||''));
+      artikel = `Menü: ${(r.Pizza||'')}, ${(r.Salat||'')} (${r.Dressing||''}), ${(r.Getraenk||'')}${gf&&!hasGfTag?', glutenfrei':''}`;
     }else{
-      artikel = `${r.Pizza||''}${gf?' (glutenfrei)':''}`;
+      const hasGfTag=/glutenfrei/i.test(String(r.Pizza||''));
+      artikel = `${r.Pizza||''}${gf&&!hasGfTag?', glutenfrei':''}`;
     }
     const tr=document.createElement('tr');
     tr.classList.add('row-add');
@@ -750,14 +754,16 @@ function renderRemoteSummary(data){
   list.forEach(r=>{
     total+=Number(r.Preis||0)||0;
     const art=String(r.Bestellart||'').toLowerCase();
+    const hasGfTag = /glutenfrei/i.test(String(r.Pizza||''));
+    const gfSuffix = r.Glutenfrei && !hasGfTag ? ', glutenfrei' : '';
     if(art==='pizza'){
-      const key=`${r.Pizza||''}${r.Groesse?` (${r.Groesse})`:''}${r.Glutenfrei?' (glutenfrei)':''}`.trim();
+      const key=`${String(r.Pizza||'')}${r.Groesse?` (${r.Groesse})`:''}${gfSuffix}`.trim();
       cP[key]=(cP[key]||0)+1;
     }else if(art==='salad'){
       const key=`${r.Salat||''} mit ${r.Dressing||''}`.trim();
       cS[key]=(cS[key]||0)+1;
     }else if(art==='menu'){
-      const pKey=`${r.Pizza||''}${r.Glutenfrei?' (glutenfrei)':''}`.trim();
+      const pKey = `${String(r.Pizza||'')}${gfSuffix}`;
       const sKey=`${r.Salat||''} mit ${r.Dressing||''}`.trim();
       const dKey=(r.Getraenk||'').trim();
       cP[pKey]=(cP[pKey]||0)+1;
@@ -788,13 +794,14 @@ function buildRemoteSummaryText(data){
 
   s+='\nBestell-Liste (nach Nummer):\n';
   list.forEach((r,i)=>{
-    const gf=r.Glutenfrei?', glutenfrei':'';
     const size=r.Groesse?`, Grösse: ${r.Groesse}`:'';
+    const hasGfTag=/glutenfrei/i.test(String(r.Pizza||''));
+    const pizzaLabel = `${r.Pizza||''}` + (r.Glutenfrei && !hasGfTag? ' (glutenfrei)':'' );
     const item = r.Bestellart==='salad'
       ? `Salat: ${r.Salat||''}, ${r.Dressing||''}`
       : (r.Bestellart==='menu'
-          ? `Menü: ${r.Pizza||''}${gf}, ${r.Salat||''} (${r.Dressing||''}), ${r.Getraenk||''}`
-          : `${r.Pizza||''}${size}${gf}`);
+          ? `Menü: ${pizzaLabel}, ${r.Salat||''} (${r.Dressing||''}), ${r.Getraenk||''}`
+          : `${pizzaLabel}${size}`);
     s+=`${String(i+1).padStart(2,'0')}. ${r.Person||''} – ${item} | CHF ${(Number(r.Preis||0)).toFixed(2)}\n`;
   });
 
@@ -933,7 +940,7 @@ checkOrderDeadline(); const btn=orderForm?.querySelector('button[type="submit"]'
     const pizzaItem=pizzaMenu.find(x=>x.id===pizzaId);
     const isGF=!!glutenFreeCheckbox?.checked;
     let price=getPrice(pizzaId,size); if(isGF) price+=GLUTENFREE_SURCHARGE;
-    const pizzaName=(pizzaItem? pizzaItem.name: pizzaId)+(isGF?' (glutenfrei)':'');
+    const pizzaName=(pizzaItem? pizzaItem.name: pizzaId); // immer Basisname ohne (glutenfrei)
     orderObj={name,orderType:'pizza',itemId:pizzaId,itemName:pizzaName,pizzaName,size,isGlutenFree:isGF,price,comments};
   }else if(orderType==='salad'){
     const saladId=saladSelect?.value||''; const dressingId=dressingSelect?.value||'';
@@ -953,7 +960,7 @@ checkOrderDeadline(); const btn=orderForm?.querySelector('button[type="submit"]'
     const drinkItem=drinkMenu.find(x=>x.id===drinkId);
     const isGF=!!glutenFreeCheckbox?.checked;
     let price=MENU_PRICE_BASE+(isGF?GLUTENFREE_SURCHARGE:0);
-    const pizzaName=(pizzaItem?pizzaItem.name:pizzaId)+(isGF?' (glutenfrei)':'');
+    const pizzaName=(pizzaItem?pizzaItem.name:pizzaId); // ohne (glutenfrei)
     const saladName='Insalata Verde';
     const dressingName=dressingItem?dressingItem.name:dressingId;
     const drinkName=drinkItem?drinkItem.name:drinkId;
@@ -981,27 +988,48 @@ checkOrderDeadline(); const btn=orderForm?.querySelector('button[type="submit"]'
 }
 
 function updateOrdersTable(){
-  if(!ordersTableBody) return; ordersTableBody.innerHTML='';
-  orders.forEach((o,idx)=>{ const tr=document.createElement('tr'); tr.classList.add('row-add'); const initials=(o.name||'').trim().split(/\s+/).slice(0,2).map(s=>s[0]?.toUpperCase()||'').join(''); const articleHtml=`${o.itemName||o.pizzaName||''}${o.comments?`<div class="subtext">${(''+o.comments).replace(/</g,'&lt;')}</div>`:''}`; tr.innerHTML=`
-    <td>${idx+1}</td><td><span class="avatar">${initials}</span>${o.name}</td><td>${articleHtml}</td><td>${o.size||''}</td>
-    <td>${o.price.toFixed(2)}</td>
-    <td class="actions-cell"><div class="actions">
-      <button class="btn btn--secondary btn-icon btn-edit" data-index="${idx}" aria-label="Bearbeiten" title="Bearbeiten">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 20h9"></path>
-          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
-        </svg>
-      </button>
-      <button class="btn btn--secondary btn-icon btn-remove" data-index="${idx}" aria-label="Entfernen" title="Entfernen">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <polyline points="3 6 5 6 21 6"></polyline>
-          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-          <path d="M10 11v6"></path>
-          <path d="M14 11v6"></path>
-          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path>
-        </svg>
-      </button>
-    </div></td>`; ordersTableBody.appendChild(tr); });
+  if(!ordersTableBody) return;
+  ordersTableBody.innerHTML='';
+  orders.forEach((o,idx)=>{
+    const tr=document.createElement('tr');
+    tr.classList.add('row-add');
+    const initials=(o.name||'').trim().split(/\s+/).slice(0,2).map(s=>s[0]?.toUpperCase()||'').join('');
+    // Artikeltext im Stil der Settings-/Sheet-Übersicht (Suffix ", glutenfrei")
+    let label='';
+    if(o.orderType==='salad'){
+      label = `Salat: ${o.saladName||''}, ${o.dressingName||''}`;
+    }else if(o.orderType==='menu'){
+      label = `Menü: ${o.pizzaName||''}, ${o.saladName||''} (${o.dressingName||''}), ${o.drinkName||''}` + (o.isGlutenFree? ', glutenfrei':'');
+    }else{
+      label = `${o.pizzaName||''}` + (o.isGlutenFree? ', glutenfrei':'');
+    }
+    const commentsHtml = o.comments? `<div class="subtext">${(''+o.comments).replace(/</g,'&lt;')}</div>`: '';
+    const articleHtml = `${label}${commentsHtml}`;
+    tr.innerHTML=`
+      <td>${idx+1}</td>
+      <td><span class="avatar">${initials}</span>${o.name}</td>
+      <td>${articleHtml}</td>
+      <td>${o.size||''}</td>
+      <td>${o.price.toFixed(2)}</td>
+      <td class="actions-cell"><div class="actions">
+        <button class="btn btn--secondary btn-icon btn-edit" data-index="${idx}" aria-label="Bearbeiten" title="Bearbeiten">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+          </svg>
+        </button>
+        <button class="btn btn--secondary btn-icon btn-remove" data-index="${idx}" aria-label="Entfernen" title="Entfernen">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+            <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div></td>`;
+    ordersTableBody.appendChild(tr);
+  });
   const total=orders.reduce((s,o)=>s+(o.price||0),0);
   if(ordersSummaryDiv) ordersSummaryDiv.textContent=orders.length?`Total: CHF ${total.toFixed(2)}`:'';
   document.querySelectorAll('.btn-remove').forEach(btn=>btn.addEventListener('click',async e=>{
@@ -1105,11 +1133,34 @@ function generateSummary(){
     s+=`Termin: ${d||'-'}, ${t||'-'} Uhr\n`;
     const mapLink=buildMapsLink(deliveryAddress); if(mapLink) s+=`Karte: ${mapLink}\n`;
     s+='\nBestell-Liste (nach Nummer):\n';
-    orders.forEach((o,i)=>{ s+=`${String(i+1).padStart(2,'0')}. ${o.name} – ${o.itemName||o.pizzaName||''}`; if(o.size) s+=`, Grösse: ${o.size}`; if(o.isGlutenFree) s+=`, glutenfrei`; if(o.comments) s+=`, Bemerkung: ${o.comments}`; s+=` | CHF ${o.price.toFixed(2)}\n`; });
+    orders.forEach((o,i)=>{
+      const baseLabel = o.itemName||o.pizzaName||'';
+      s+=`${String(i+1).padStart(2,'0')}. ${o.name} – ${baseLabel}`;
+      if(o.size) s+=`, Grösse: ${o.size}`;
+      if(o.isGlutenFree && !/glutenfrei/i.test(baseLabel)) s+=`, glutenfrei`;
+      if(o.comments) s+=`, Bemerkung: ${o.comments}`;
+      s+=` | CHF ${o.price.toFixed(2)}\n`;
+    });
     const countsPizza={},countsSalad={},countsDrinks={};
-    orders.forEach(o=>{ if(o.orderType==='pizza'){ const k=`${o.pizzaName}${o.size?` (${o.size})`:''}`.trim(); countsPizza[k]=(countsPizza[k]||0)+1; }
-      else if(o.orderType==='salad'){ const k=`${o.saladName} mit ${o.dressingName}`; countsSalad[k]=(countsSalad[k]||0)+1; }
-      else if(o.orderType==='menu'){ const p=`${o.pizzaName}`; countsPizza[p]=(countsPizza[p]||0)+1; const sKey=`${o.saladName} mit ${o.dressingName}`; countsSalad[sKey]=(countsSalad[sKey]||0)+1; const dKey=o.drinkName; countsDrinks[dKey]=(countsDrinks[dKey]||0)+1; }});
+    orders.forEach(o=>{
+      if(o.orderType==='pizza'){
+        const gf=o.isGlutenFree? ', glutenfrei':'';
+        const k=`${o.pizzaName}${o.size?` (${o.size})`:''}${gf}`.trim();
+        countsPizza[k]=(countsPizza[k]||0)+1;
+      }
+      else if(o.orderType==='salad'){
+        const k=`${o.saladName} mit ${o.dressingName}`;
+        countsSalad[k]=(countsSalad[k]||0)+1;
+      }
+      else if(o.orderType==='menu'){
+        const p=`${o.pizzaName}${o.isGlutenFree? ', glutenfrei':''}`;
+        countsPizza[p]=(countsPizza[p]||0)+1;
+        const sKey=`${o.saladName} mit ${o.dressingName}`;
+        countsSalad[sKey]=(countsSalad[sKey]||0)+1;
+        const dKey=o.drinkName;
+        countsDrinks[dKey]=(countsDrinks[dKey]||0)+1;
+      }
+    });
     const sorted=o=>Object.entries(o).sort((a,b)=>a[0].localeCompare(b[0],'de'));
     s+='\nMengenübersicht:\n— Pizzas —\n'; sorted(countsPizza).forEach(([k,v])=>s+=`  ${v}× ${k}\n`);
     s+='— Salate (inkl. Dressing) —\n'; sorted(countsSalad).forEach(([k,v])=>s+=`  ${v}× ${k}\n`);
