@@ -27,11 +27,21 @@ body{
 
 section{max-width:1100px;margin:12px auto;padding:16px}
 
-.order-info{background:var(--card);border:1px solid var(--border);border-radius:12px}
+.order-info{background:var(--card);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 
 .admin{background:var(--card);border:1px solid var(--border);border-radius:12px}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .field-group{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.time-inline{display:flex;gap:8px;align-items:center}
+.time-inline select{min-width:150px;display:none}
+
+/* Time popover (like calendar) */
+.time-popover{position:absolute;z-index:2000;background:var(--card);border:1px solid var(--border);box-shadow:0 10px 30px rgba(0,0,0,.18);border-radius:12px;padding:8px;min-width:180px;max-height:260px;overflow:auto}
+.time-popover__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.time-popover__item{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;text-align:center}
+.time-popover__item:hover{background:#f3f3f3}
+:root[data-theme="dark"] .time-popover__item{background:#101010;color:var(--text);border-color:var(--border)}
+:root[data-theme="dark"] .time-popover__item:hover{background:#161616}
 .field-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
 .field-group--full{grid-column:1 / -1}
 .subheading{margin:8px 0 4px;font-size:1rem}
@@ -63,10 +73,17 @@ body:not([data-theme="dark"]) textarea{
 
 .btn{border:none;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600}
 .btn-icon{padding:0;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center}
+.btn--orange{background:var(--primary);color:#fff}
+.btn--orange:hover{background:var(--primary-700)}
+.btn--half{width:50%}
+@media (max-width: 520px){ .btn--half{width:100%} }
+/* Drittelbreite-Button (z. B. Settings) */
+.btn--third{width:33.333%;flex:0 0 33.333%;max-width:33.333%}
+@media (max-width: 520px){ .btn--third{width:100%;flex-basis:100%;max-width:100%} }
 .btn-with-icon{display:inline-flex;align-items:center;gap:8px}
 .btn-with-icon svg{width:16px;height:16px}
-.btn--primary{background:var(--primary);color:#fff}
-.btn--primary:hover{background:var(--primary-700)}
+.btn--primary{background:#333;color:#fff}
+.btn--primary:hover{background:#222}
 .btn--secondary{background:var(--btn-secondary-bg);color:var(--btn-secondary-text);border:1px solid var(--btn-secondary-border)}
 .btn--secondary:hover{background:#ebebeb}
 
@@ -207,7 +224,8 @@ body:not([data-theme="dark"]) .orders-table tbody tr:nth-child(even){background:
 :root[data-theme="dark"] input, :root[data-theme="dark"] select, :root[data-theme="dark"] textarea{background:#101010;color:var(--text);border-color:var(--border)}
 :root[data-theme="dark"] .remote-wrapper{background:var(--card)}
 :root[data-theme="dark"] .btn--secondary:hover{background:#3a3a3a}
-:root[data-theme="dark"] .btn--primary{color:#fff}
+:root[data-theme="dark"] .btn--primary{background:#2a2a2a;color:#fff}
+:root[data-theme="dark"] .btn--primary:hover{background:#333}
 :root[data-theme="dark"] .deadline-progress{background:#2a2a2a}
 :root[data-theme="dark"] .skeleton-box{background:#222}
 
@@ -236,6 +254,7 @@ body:not([data-theme="dark"]) .orders-table tbody tr:nth-child(even){background:
 /* Modal */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:2000}
 .modal__content{background:var(--card);border:1px solid var(--border);border-radius:12px;min-width:280px;max-width:92vw;padding:16px}
+.modal__content{width:min(560px,92vw);overflow-wrap:anywhere}
 .password-input-wrap{display:flex;gap:6px;align-items:center}
 .password-input-wrap input{flex:1;background:#fff;color:#111}
 :root[data-theme="dark"] .password-input-wrap input{background:#0f0f0f;color:#fff}
@@ -245,6 +264,14 @@ input::placeholder, textarea::placeholder{ color: var(--muted) }
 /* Select hat keinen echten Placeholder – wir markieren das per Klasse */
 select.is-placeholder{ color: var(--muted) }
 :root[data-theme="dark"] select.is-placeholder{ color: #9f9f9f }
+
+/* Verhindert iOS/Touch-Autozoom: Eingabefelder im Modal >=16px */
+@media (hover: none) and (pointer: coarse){
+  .modal input, .modal select, .modal textarea{ font-size:16px }
+}
+@supports (-webkit-touch-callout: none){
+  .modal input, .modal select, .modal textarea{ font-size:16px }
+}
 
 /* Avatars + row animations */
 .avatar{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:999px;background:var(--primary);color:#fff;font-weight:700;font-size:.85rem;margin-right:6px}

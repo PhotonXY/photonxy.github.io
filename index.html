@@ -23,6 +23,7 @@
   <section class="order-info">
     <p><strong>Bestelldatum:</strong> <span id="display-date">–</span>,
        <strong>Lieferzeit:</strong> <span id="display-time">–</span></p>
+    <button id="toggle-admin" class="btn btn--secondary btn--third" aria-expanded="false">⚙️ Settings</button>
   </section>
 
   <!-- ADMIN - Einstellungen -->
@@ -169,13 +170,13 @@
 
       <div id="remote-total" class="remote-total"></div>
 
-      <div class="remote-summary-tools btn-grid">
-        <button id="copy-remote-summary" class="btn btn--secondary">In Zwischenablage kopieren</button>
-        <button id="email-remote-summary" class="btn btn--secondary" aria-label="Bestellung senden">Bestellung senden</button>
-        <button id="print-remote-summary" class="btn btn--secondary" aria-label="Drucken">Drucken</button>
-      </div>
-
       <textarea id="remote-summary-text" class="remote-summary-box" rows="8" placeholder="Zusammenfassung vom Google Sheet …"></textarea>
+      <div class="remote-summary-tools btn-grid">
+        <button id="copy-remote-summary" class="btn btn--secondary">Kopieren</button>
+        <button id="email-remote-summary" class="btn btn--secondary" aria-label="Bestellung senden">Senden</button>
+        <button id="print-remote-summary" class="btn btn--secondary" aria-label="Drucken">Print</button>
+        <button id="download-remote-csv-btn-2" class="btn btn--secondary">Export</button>
+      </div>
     </div>
   </section>
 
@@ -201,7 +202,6 @@
   <section class="order-form">
     <div class="form-header">
       <h2>Bestellung aufgeben</h2>
-      <button id="toggle-admin" class="btn btn--secondary" aria-expanded="false">⚙️ Settings</button>
     </div>
 
     <p id="deadline-display" class="deadline-display" style="display:none;"></p>
@@ -267,13 +267,13 @@
 
       <p id="price-preview" class="price-preview" aria-live="polite" style="display:none;">Preis: –</p>
 
-      <button type="submit" class="btn btn--primary">Bestellung hinzufügen</button>
+      <button type="submit" class="btn btn--orange btn--half">Zur Bestellung hinzufügen</button>
     </form>
   </section>
 
   <!-- lokale Uebersicht -->
   <section class="orders-overview">
-    <h2>Aktuelle Bestellungen</h2>
+    <h2>Meine Bestellungen</h2>
     <div class="table-wrap">
       <table id="orders-table" class="orders-table">
         <thead>
@@ -290,12 +290,9 @@
       </table>
     </div>
     <div id="orders-summary" class="total"></div>
-      <div class="button-row btn-grid">
-        <button id="generate-summary" class="btn btn--secondary">Übersicht generieren</button>
-        <button id="download-csv" class="btn btn--secondary">CSV herunterladen</button>
-        <button id="email-summary" class="btn btn--secondary" aria-label="Bestellung senden">Bestellung senden</button>
-        <button id="print-summary" class="btn btn--secondary" aria-label="Drucken">Drucken</button>
-      </div>
+    <div class="button-row btn-grid">
+      <button id="generate-summary" class="btn btn--secondary">Übersicht</button>
+    </div>
   </section>
 
   <!-- generierte Zusammenfassung -->
@@ -304,16 +301,16 @@
     <p>Diese Übersicht fasst alle Bestellungen zusammen. Kopiere den Text oder sende ihn direkt per E-Mail.</p>
     <textarea id="summary-text" rows="10" readonly></textarea>
     <div class="button-row btn-grid">
-      <button id="copy-summary" class="btn btn--primary">In Zwischenablage kopieren</button>
-      <button id="email-summary-2" class="btn btn--secondary" aria-label="Bestellung senden">Bestellung senden</button>
-      <button id="print-summary-2" class="btn btn--secondary" aria-label="Drucken">Drucken</button>
+      <button id="copy-summary" class="btn btn--secondary">Kopieren</button>
+      <button id="email-summary-2" class="btn btn--secondary" aria-label="Bestellung senden">Senden</button>
+      <button id="print-summary-2" class="btn btn--secondary" aria-label="Drucken">Print</button>
+      <button id="download-csv-2" class="btn btn--secondary">Export</button>
     </div>
   </section>
 
   <footer class="footer">
     <p>
-      Bestellinhalt basierend auf Angaben von
-      <a href="https://www.dieci.ch/de/menu" target="_blank" rel="noopener">dieci.ch</a>.
+      <p>Inhalte basieren auf <a href="https://www.dieci.ch/de/menu" target="_blank" rel="noopener">dieci.ch</a> (Stand: 29.08.2025); Änderungen vorbehalten.</p>
       &copy; 2025 Stephan Stucki
     </p>
   </footer>

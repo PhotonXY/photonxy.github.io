@@ -396,6 +396,30 @@ function disableOrdering(){ const btn=orderForm?.querySelector('button[type="sub
 function enableOrdering(){ const btn=orderForm?.querySelector('button[type="submit"]'); if(btn) btn.disabled=false; if(deadlineWarningDiv) deadlineWarningDiv.style.display='none'; }
 function checkOrderDeadline(){ const d=deadlineDateInput?.value, t=deadlineTimeInput?.value; if(!d){ enableOrdering(); return; } const deadline=new Date(`${d}T${t? t: '23:59'}`); const now=new Date(); if(now>deadline) disableOrdering(); else enableOrdering(); }
 
+// Zeit-Popover: Anzeige einer Auswahl wie beim Kalender für Time-Inputs
+function attachTimePopover(input, {start='08:00', end='20:00', stepMin=15}={}){
+  if(!input) return;
+  const toMin = s=>{ const [H,M]=String(s).split(':').map(x=>parseInt(x,10)); return (H||0)*60+(M||0); };
+  const pad = n=>String(n).padStart(2,'0');
+  let pop=null;
+  function build(){
+    pop=document.createElement('div'); pop.className='time-popover'; pop.setAttribute('role','dialog');
+    const grid=document.createElement('div'); grid.className='time-popover__grid'; pop.appendChild(grid);
+    for(let m=toMin(start); m<=toMin(end); m+=stepMin){
+      const hh=pad(Math.floor(m/60)); const mm=pad(m%60); const v=`${hh}:${mm}`;
+      const it=document.createElement('button'); it.type='button'; it.className='time-popover__item'; it.textContent=v;
+      it.addEventListener('click',()=>{ input.value=v; input.dispatchEvent(new Event('change',{bubbles:true})); hide(); });
+      grid.appendChild(it);
+    }
+    document.body.appendChild(pop);
+  }
+  function position(){ if(!pop) return; const r=input.getBoundingClientRect(); pop.style.top=(window.scrollY+r.bottom+6)+'px'; pop.style.left=(window.scrollX+r.left)+'px'; }
+  function show(){ if(!pop) build(); pop.style.display='block'; position(); document.addEventListener('mousedown', onDocClick, true); window.addEventListener('resize', position); window.addEventListener('scroll', position, true); }
+  function hide(){ if(!pop) return; pop.style.display='none'; document.removeEventListener('mousedown', onDocClick, true); window.removeEventListener('resize', position); window.removeEventListener('scroll', position, true); }
+  function onDocClick(e){ if(e.target===input || (pop && pop.contains(e.target))) return; hide(); }
+  input.addEventListener('focus', show); input.addEventListener('click', show); input.addEventListener('keydown',(e)=>{ if(e.key==='Escape') hide(); });
+}
+
 /* =========================================================================
    5b) Preisvorschau
    ========================================================================= */
@@ -800,9 +824,10 @@ function buildRemoteSummaryText(data){
   let s='';
   s+=`Besteller: ${ordererName||'-'} | Tel.: ${ordererPhone||'-'}\n`;
   s+=`Lieferadresse: ${deliveryAddress||'-'}\n`;
-  s+=`Lieferant: ${supplierName||'-'} | Tel.: ${supplierPhone||'-'} | Mail: ${supplierEmail||'-'}\n`;
-  s+=`Termin: ${d||'-'}, ${t||'-'} Uhr\n`;
   const mapLink=buildMapsLink(deliveryAddress); if(mapLink) s+=`Karte: ${mapLink}\n`;
+  s+='\nLieferantendaten:\n';
+  s+=`Lieferant: ${supplierName||'-'} | Tel.: ${supplierPhone||'-'} | Mail: ${supplierEmail||'-'}\n`;
+  s+=`Liefertermin: ${d||'-'}, ${t||'-'} Uhr\n`;
 
   s+='\nBestell-Liste (nach Nummer):\n';
   list.forEach((r,i)=>{
@@ -1107,6 +1132,7 @@ function toggleAdminSection(){
     if(!adminAccessGranted){ showAdminLogin(); return; }
     adminSection.style.display='block';
     if(toggleAdminBtn){ toggleAdminBtn.setAttribute('aria-expanded','true'); }
+    try{ sessionStorage.setItem('adminOpen','1'); }catch(e){}
     pageTitleInputField.value=pageTitleElement?.textContent||'';
     pageDescriptionInputField.value=pageDescriptionElement?.textContent||'';
     updateDeliveryMap();
@@ -1114,6 +1140,7 @@ function toggleAdminSection(){
   }else{
     adminSection.style.display='none'; adminAccessGranted=false; stopRemoteAutoReload();
     if(toggleAdminBtn){ toggleAdminBtn.setAttribute('aria-expanded','false'); }
+    try{ sessionStorage.removeItem('adminOpen'); }catch(e){}
   }
 }
 
@@ -1137,12 +1164,13 @@ function generateSummary(){
     const supplierPhone=supplierPhoneInput?.value?.trim()||'';
     const supplierEmail=supplierEmailInput?.value?.trim()||'';
 
-    let s='';
-    s+=`Besteller: ${ordererName||'-'} | Tel.: ${ordererPhone||'-'}\n`;
-    s+=`Lieferadresse: ${deliveryAddress||'-'}\n`;
-    s+=`Lieferant: ${supplierName||'-'} | Tel.: ${supplierPhone||'-'} | Mail: ${supplierEmail||'-'}\n`;
-    s+=`Termin: ${d||'-'}, ${t||'-'} Uhr\n`;
-    const mapLink=buildMapsLink(deliveryAddress); if(mapLink) s+=`Karte: ${mapLink}\n`;
+  let s='';
+  s+=`Besteller: ${ordererName||'-'} | Tel.: ${ordererPhone||'-'}\n`;
+  s+=`Lieferadresse: ${deliveryAddress||'-'}\n`;
+  const mapLink=buildMapsLink(deliveryAddress); if(mapLink) s+=`Karte: ${mapLink}\n`;
+  s+='\nLieferantendaten:\n';
+  s+=`Lieferant: ${supplierName||'-'} | Tel.: ${supplierPhone||'-'} | Mail: ${supplierEmail||'-'}\n`;
+  s+=`Liefertermin: ${d||'-'}, ${t||'-'} Uhr\n`;
     s+='\nBestell-Liste (nach Nummer):\n';
     orders.forEach((o,i)=>{
       const baseLabel = o.itemName||o.pizzaName||'';
@@ -1211,7 +1239,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.documentElement.setAttribute('data-theme', theme);
     const tgl=document.getElementById('theme-toggle');
     if(tgl){
-      const apply=(th)=>{ document.documentElement.setAttribute('data-theme', th); localStorage.setItem('theme', th); tgl.setAttribute('aria-pressed', String(th==='dark')); tgl.textContent = th==='dark' ? '☀️' : '🌙'; tgl.title = th==='dark' ? 'Heller Modus' : 'Dunkler Modus'; try{ updateDeliveryMap(); }catch(e){} };
+      const apply=(th)=>{ document.documentElement.setAttribute('data-theme', th); localStorage.setItem('theme', th); tgl.setAttribute('aria-pressed', String(th==='dark')); tgl.textContent = th==='dark' ? '✨' : '☀️'; tgl.title = th==='dark' ? 'Heller Modus' : 'Dunkler Modus'; try{ updateDeliveryMap(); }catch(e){} };
       apply(theme);
       tgl.addEventListener('click',()=>{ const cur=document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'; apply(cur==='dark'?'light':'dark'); });
     }
@@ -1236,6 +1264,23 @@ document.addEventListener('DOMContentLoaded',()=>{
   updateSelectPlaceholderState(drinkSelect);
   adminSection.style.display='none'; if(toggleAdminBtn){ toggleAdminBtn.setAttribute('aria-expanded','false'); }
   updateDateTimeDisplay();
+  // Admin offen halten nach Refresh (gleiche Browser-Session)
+  try{
+    if(sessionStorage.getItem('adminOpen')==='1'){
+      adminAccessGranted=true;
+      adminSection.style.display='block';
+      toggleAdminBtn?.setAttribute('aria-expanded','true');
+      pageTitleInputField.value=pageTitleElement?.textContent||'';
+      pageDescriptionInputField.value=pageDescriptionElement?.textContent||'';
+      ensureSharedSecret(); loadOrdersFromGoogle(); startRemoteAutoReload();
+    }
+  }catch(e){}
+  // Zeit-Popover für Uhrzeitfelder
+  try{
+    attachTimePopover(orderTimeInput,{start:'08:00', end:'20:00', stepMin:15});
+    attachTimePopover(deadlineTimeInput,{start:'08:00', end:'20:00', stepMin:15});
+    orderTimeInput?.addEventListener('change', ()=>{ saveOrderDateTimeToStorage(); });
+  }catch(e){}
 
   try{
     const savedAddress=localStorage.getItem('deliveryAddress');
@@ -1343,8 +1388,13 @@ document.addEventListener('DOMContentLoaded',()=>{
   // (Pizza-Suche entfernt)
 
   orderForm?.addEventListener('submit', addOrder);
-  generateSummaryBtn?.addEventListener('click', generateSummary);
+  // Übersicht: Toggle öffnen/schliessen
+  function openSummary(){ generateSummary(); try{ generateSummaryBtn.textContent='Übersicht schliessen'; generateSummaryBtn.dataset.state='open'; }catch(e){} }
+  function closeSummary(){ if(summaryOutputSection){ summaryOutputSection.style.display='none'; } try{ generateSummaryBtn.textContent='Übersicht'; delete generateSummaryBtn.dataset.state; }catch(e){} }
+  function toggleSummary(){ if(generateSummaryBtn?.dataset.state==='open'){ closeSummary(); } else { openSummary(); } }
+  generateSummaryBtn?.addEventListener('click', (e)=>{ e.preventDefault(); toggleSummary(); });
   downloadCsvBtn?.addEventListener('click', downloadCsv);
+  document.getElementById('download-csv-2')?.addEventListener('click', downloadCsv);
   copySummaryBtn?.addEventListener('click', ()=>{ summaryTextArea?.select(); document.execCommand('copy'); showToast('Übersicht kopiert.'); });
 
   // Auto-Resize initialisieren
@@ -1395,6 +1445,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(!text){ alert('Bitte zuerst vom Sheet laden oder Übersicht aktualisieren.'); return; }
     printContent('Pizza-Bestellung – Übersicht (Sheet)', text);
   });
+  document.getElementById('download-remote-csv-btn-2')?.addEventListener('click', downloadRemoteCsv);
 
   toggleAdminBtn?.addEventListener('click', toggleAdminSection);
 
@@ -1413,6 +1464,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     pageTitleInputField.value=pageTitleElement?.textContent||'';
     pageDescriptionInputField.value=pageDescriptionElement?.textContent||'';
     ensureSharedSecret(); loadOrdersFromGoogle(); startRemoteAutoReload();
+    try{ sessionStorage.setItem('adminOpen','1'); }catch(e){}
   };
   adminLoginConfirm?.addEventListener('click', tryLogin);
   adminLoginCancel?.addEventListener('click', ()=>{ hideAdminLogin(); adminAccessGranted=false; });
