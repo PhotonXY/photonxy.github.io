@@ -10,7 +10,7 @@
    0) Google Sheets Anbindung
    ========================================================================= */
 const GOOGLE_SCRIPT_URL =
-  'https://script.google.com/macros/s/AKfycbyyJTxpjcKTkUrE8QkKch-n6Cyi2tJWj7JY8JvMcqG065aNJ4D8tTta9EZmv7R4dS3G/exec';
+  'https://script.google.com/macros/s/AKfycbzV_DBV1mr2DNVUcH2wcKpmdiU3zxDKRSAGMfm9doQRY7T3Fn0j6t5upfs2ItXgV6b6/exec';
 
 const SECRET_LS_KEY = 'PizzaBestellung';
 let GOOGLE_SHARED_SECRET_RUNTIME = '';
@@ -270,17 +270,39 @@ function applyConfigToUI(cfg){
   try{ updateDateTimeDisplay(); updateDeadlineDisplay(); updateDeliveryMap(); updateOrdersTable(); updatePricePreview(); }catch(e){}
 }
 async function configGetFromServer(){
+  const url = `${GOOGLE_SCRIPT_URL}?action=configGet`;
   try{
-    const url = `${GOOGLE_SCRIPT_URL}?action=configGet`;
     const res = await fetch(url, {method:'GET'});
     if(!res.ok) throw new Error('configGet HTTP '+res.status);
     const data = await res.json();
-    // data expected as { key:value, ... } or {items:[{key,value}]}
     if(Array.isArray(data?.items)){
       const obj={}; data.items.forEach(it=>{ if(it && it.key) obj[it.key]=it.value; }); return obj;
     }
     return data;
-  }catch(e){ console.warn('configGet fehlgeschlagen:', e); return null; }
+  }catch(e){
+    console.warn('configGet via fetch fehlgeschlagen, wechsle auf JSONP…', e);
+    try{
+      const cbName = `__CONFIG_CB__${Date.now()}`;
+      const data = await loadJsonpCustom(`${url}`, cbName);
+      if(Array.isArray(data?.items)){
+        const obj={}; data.items.forEach(it=>{ if(it && it.key) obj[it.key]=it.value; }); return obj;
+      }
+      return data || null;
+    }catch(e2){ console.warn('configGet JSONP fehlgeschlagen:', e2); return null; }
+  }
+}
+
+function loadJsonpCustom(baseUrl, callbackName){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    const sep = baseUrl.includes('?')? '&':'?';
+    s.src = `${baseUrl}${sep}callback=${encodeURIComponent(callbackName)}`;
+    s.async = true;
+    function cleanup(){ try{ delete window[callbackName]; document.head.removeChild(s); }catch(_){} }
+    window[callbackName] = function(payload){ try{ resolve(payload); } finally { cleanup(); } };
+    s.onerror = function(){ cleanup(); reject(new Error('JSONP error')); };
+    document.head.appendChild(s);
+  });
 }
 async function configSetOnServer(cfg){
   try{
