@@ -118,6 +118,11 @@ body:not([data-theme="dark"]) .orders-table tbody tr:nth-child(even){background:
 
 /* Serverdaten-Bereich */
 .remote-actions{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 6px}
+.btn-grid{display:grid !important;gap:8px}
+.btn-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.btn-grid:has(>*:nth-child(4)){grid-template-columns:repeat(4,minmax(0,1fr))}
+.btn-grid:has(>*:nth-child(3)):not(:has(>*:nth-child(4))){grid-template-columns:repeat(3,minmax(0,1fr))}
+.btn-grid > .btn{width:100%}
 .remote-status{font-size:.95rem;color:var(--text);margin:4px 0 8px}
 .remote-wrapper{
   margin-top:8px;overflow-x:auto;border:1px solid var(--border);
