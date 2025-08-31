@@ -204,10 +204,44 @@
     </div>
   </div>
 
+  <!-- QR Modal -->
+  <div id="qr-modal" class="modal" style="display:none;">
+    <div class="modal__content">
+      <h3>Seite teilen</h3>
+      <div class="field-group">
+        <img id="qr-image" alt="QR‑Code für den Seitenlink" class="qr-image" style="display:block;max-width:80vw;max-height:60vh;margin:8px auto;border-radius:12px;"/>
+      </div>
+      <div class="field-group">
+        <input type="text" id="qr-link" readonly value="https://photonxy.github.io"/>
+      </div>
+      <div class="field-row btn-grid">
+        <button id="qr-copy" class="btn btn--secondary">Link kopieren</button>
+        <button id="qr-share" class="btn btn--secondary">Teilen</button>
+        <button id="qr-close" class="btn btn--secondary">Schliessen</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Formular fuer neue Bestellung -->
   <section class="order-form">
     <div class="form-header">
       <h2>Bestellung aufgeben</h2>
+      <button id="qr-open" class="btn btn--secondary btn-icon qr-btn" aria-label="Seitenlink als QR anzeigen/teilen" title="Seitenlink teilen">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+          <!-- Drei Finder-Quadrate -->
+          <rect x="2" y="2" width="6" height="6" rx="1" ry="1" fill="none" stroke="currentColor" stroke-width="2"/>
+          <rect x="16" y="2" width="6" height="6" rx="1" ry="1" fill="none" stroke="currentColor" stroke-width="2"/>
+          <rect x="2" y="16" width="6" height="6" rx="1" ry="1" fill="none" stroke="currentColor" stroke-width="2"/>
+          <!-- Innen-Pixel (dezent) -->
+          <rect x="10" y="2" width="2" height="2" fill="currentColor"/>
+          <rect x="12.5" y="6" width="2.5" height="2.5" fill="currentColor"/>
+          <rect x="10" y="10" width="4" height="4" fill="currentColor"/>
+          <rect x="16" y="12" width="2" height="2" fill="currentColor"/>
+          <rect x="20" y="10" width="2" height="2" fill="currentColor"/>
+          <rect x="12" y="16" width="2" height="2" fill="currentColor"/>
+          <rect x="18" y="18" width="4" height="4" fill="currentColor"/>
+        </svg>
+      </button>
     </div>
 
     <p id="deadline-display" class="deadline-display" style="display:none;"></p>

@@ -1732,6 +1732,35 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(!text){ alert('Bitte zuerst vom Sheet laden oder Übersicht aktualisieren.'); return; }
     printContent('Pizza-Bestellung – Übersicht (Sheet)', text);
   });
+
+  // QR Modal: öffnen/teilen/kopieren
+  (function initQr(){
+    const openBtn = document.getElementById('qr-open');
+    const modal   = document.getElementById('qr-modal');
+    const img     = document.getElementById('qr-image');
+    const linkInp = document.getElementById('qr-link');
+    const btnCopy = document.getElementById('qr-copy');
+    const btnShare= document.getElementById('qr-share');
+    const btnClose= document.getElementById('qr-close');
+    if(!openBtn||!modal||!img||!linkInp) return;
+    const targetUrl = 'https://photonxy.github.io';
+    const buildQrUrl = (u)=>`https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(u)}`;
+    const open = ()=>{ linkInp.value=targetUrl; img.src=buildQrUrl(targetUrl); modal.style.display='flex'; setTimeout(()=>btnCopy?.focus(),0); };
+    const close= ()=>{ modal.style.display='none'; };
+    openBtn.addEventListener('click', open);
+    btnClose?.addEventListener('click', close);
+    modal.addEventListener('click', (e)=>{ if(e.target===modal) close(); });
+    document.addEventListener('keydown',(e)=>{ if(modal.style.display!=='none' && e.key==='Escape') close(); });
+    btnCopy?.addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(targetUrl); showToast('Link kopiert.'); }catch{ alert('Konnte Link nicht kopieren.'); }
+    });
+    btnShare?.addEventListener('click', async ()=>{
+      try{
+        if(navigator.share){ await navigator.share({ title:'KAIZEN Pizza', url: targetUrl }); }
+        else{ window.open(`https://wa.me/?text=${encodeURIComponent(targetUrl)}`,'_blank'); }
+      }catch(_){ /* abgebrochen */ }
+    });
+  })();
   document.getElementById('download-remote-csv-btn-2')?.addEventListener('click', downloadRemoteCsv);
 
   toggleAdminBtn?.addEventListener('click', toggleAdminSection);
