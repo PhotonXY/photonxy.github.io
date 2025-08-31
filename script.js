@@ -233,11 +233,11 @@ function buildConfigFromUI(){
   cfg.orderTime = orderTimeInput?.value||'';
   cfg.ordererName = ordererNameInput?.value||'';
   cfg.eventMode = document.getElementById('event-mode')?.checked ? '1':'0';
-  cfg.ordererPhone = ordererPhoneInput?.value||'';
+  cfg.ordererPhone = normalizeSwissPhone(ordererPhoneInput?.value||'');
   cfg.deliveryAddress = deliveryAddressInput?.value||'';
   cfg.mapsApiKey = document.getElementById('maps-api-key')?.value||'';
   cfg.supplierName = document.getElementById('supplier-name')?.value||'';
-  cfg.supplierPhone = document.getElementById('supplier-phone')?.value||'';
+  cfg.supplierPhone = normalizeSwissPhone(document.getElementById('supplier-phone')?.value||'');
   cfg.supplierEmail = document.getElementById('supplier-email')?.value||'';
   cfg.pageTitle = document.getElementById('page-title-input')?.value||'';
   cfg.pageDescription = document.getElementById('page-description-input')?.value||'';
@@ -283,11 +283,11 @@ function applyConfigToUI(cfg){
   if(cfg.orderTime && orderTimeInput) orderTimeInput.value = toHHMM(cfg.orderTime);
   if(cfg.ordererName && ordererNameInput) ordererNameInput.value = cfg.ordererName;
   if(typeof cfg.eventMode!== 'undefined'){ const cb=document.getElementById('event-mode'); if(cb) cb.checked = String(cfg.eventMode)==='1'; }
-  if(cfg.ordererPhone && ordererPhoneInput) ordererPhoneInput.value = cfg.ordererPhone;
+  if(cfg.ordererPhone && ordererPhoneInput) ordererPhoneInput.value = normalizeSwissPhone(cfg.ordererPhone);
   if(cfg.deliveryAddress && deliveryAddressInput) deliveryAddressInput.value = cfg.deliveryAddress;
   if(cfg.mapsApiKey) document.getElementById('maps-api-key') && (document.getElementById('maps-api-key').value = cfg.mapsApiKey);
   if(cfg.supplierName) document.getElementById('supplier-name') && (document.getElementById('supplier-name').value = cfg.supplierName);
-  if(cfg.supplierPhone) document.getElementById('supplier-phone') && (document.getElementById('supplier-phone').value = cfg.supplierPhone);
+  if(cfg.supplierPhone) document.getElementById('supplier-phone') && (document.getElementById('supplier-phone').value = normalizeSwissPhone(cfg.supplierPhone));
   if(cfg.supplierEmail) document.getElementById('supplier-email') && (document.getElementById('supplier-email').value = cfg.supplierEmail);
   if(cfg.pageTitle){
     if(document.getElementById('page-title-input')) document.getElementById('page-title-input').value = cfg.pageTitle;
@@ -541,7 +541,70 @@ function printContent(title, text){
   win.document.close();
   win.focus();
 }
-function normalizeSwissPhone(input){ const d=(input||'').replace(/\D+/g,''); if(d.length===10) return `${d.slice(0,3)} ${d.slice(3,6)} ${d.slice(6,8)} ${d.slice(8,10)}`; return input; }
+function normalizeSwissPhone(input){
+  try{
+    let d = String(input||'').trim().replace(/\D+/g,'');
+    // Entferne Landesvorwahl +41 / 0041
+    if(d.startsWith('0041')) d = d.slice(4);
+    else if(d.startsWith('41')) d = d.slice(2);
+    // Wenn führende 0 fehlt (typisch nach Entfernen von 41): ergänzen – für alle schweizer Nummern
+    if(d.length===9) d = '0'+d;
+    // Nur formatieren, wenn exakt 10 Ziffern
+    if(d.length===10){ return `${d.slice(0,3)} ${d.slice(3,6)} ${d.slice(6,8)} ${d.slice(8,10)}`; }
+    return String(input||'');
+  }catch{ return String(input||''); }
+}
+
+function isValidEmail(s){
+  const v=String(s||'').trim();
+  if(!v) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+function markInvalid(el, invalid){
+  if(!el) return; if(invalid){ el.classList.add('field-invalid'); el.setAttribute('aria-invalid','true'); }
+  else { el.classList.remove('field-invalid'); el.removeAttribute('aria-invalid'); }
+}
+function attachLivePhoneFormat(el){
+  if(!el) return;
+  el.addEventListener('input',()=>{
+    const d=(el.value||'').replace(/\D+/g,'');
+    const invalid = (d.length>0 && d.length!==10);
+    markInvalid(el, invalid);
+  });
+  el.addEventListener('blur',()=>{
+    const f=normalizeSwissPhone(el.value||''); el.value=f;
+    const d=(el.value||'').replace(/\D+/g,''); markInvalid(el, !!(d && d.length!==10));
+  });
+}
+function attachEmailValidation(el){
+  if(!el) return;
+  const validate=()=>{ const v=(el.value||'').trim(); markInvalid(el, v? !isValidEmail(v): false); };
+  el.addEventListener('input', validate);
+  el.addEventListener('blur', validate);
+}
+function parseDateTimeLocal(dateStr, timeStr){
+  const d=String(dateStr||'').trim(); const t=String(timeStr||'').trim();
+  if(!d) return null; const iso = `${d}T${t||'00:00'}`; const dt=new Date(iso); return isNaN(dt)? null: dt;
+}
+
+function validateDeadlineVsOrder(){
+  try{
+    const hint=document.getElementById('deadline-hint');
+    const dOrder = parseDateTimeLocal(orderDateInput?.value, orderTimeInput?.value);
+    const dDead  = parseDateTimeLocal(deadlineDateInput?.value, deadlineTimeInput?.value);
+    // Reset
+    markInvalid(deadlineDateInput, false); markInvalid(deadlineTimeInput, false);
+    if(!dOrder || !dDead){ if(hint) hint.style.display='none'; return true; }
+    const ok = dDead <= dOrder;
+    if(!ok){
+      markInvalid(deadlineDateInput, true); markInvalid(deadlineTimeInput, true);
+      if(hint) hint.style.display='block';
+    }else{
+      if(hint) hint.style.display='none';
+    }
+    return ok;
+  }catch(e){ return true; }
+}
 
 /* =========================================================================
    4) Deadline
@@ -1494,13 +1557,20 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   $('#save-admin-data')?.addEventListener('click', async ()=>{
     const btn = document.getElementById('save-admin-data');
+    // Validierungen
+    const emailVal = (supplierEmailInput?.value||'').trim();
+    if(emailVal && !isValidEmail(emailVal)){ alert('Bitte gültige E‑Mail-Adresse des Lieferanten eingeben.'); supplierEmailInput?.focus(); return; }
+    // Deadline <= Liefertermin
+    const dtOrder = parseDateTimeLocal(orderDateInput?.value, orderTimeInput?.value);
+    const dtDeadline = parseDateTimeLocal(deadlineDateInput?.value, deadlineTimeInput?.value);
+    if(dtOrder && dtDeadline && dtDeadline > dtOrder){ alert('Bestellschluss muss kleiner oder gleich dem Liefertermin sein.'); deadlineDateInput?.focus(); return; }
     // 1) Lokal cachen
     if(deliveryAddressInput) localStorage.setItem('deliveryAddress',deliveryAddressInput.value.trim());
     if(ordererNameInput)     localStorage.setItem('ordererName',ordererNameInput.value.trim());
-    if(ordererPhoneInput)    localStorage.setItem('ordererPhone',ordererPhoneInput.value.trim());
+    if(ordererPhoneInput)    localStorage.setItem('ordererPhone',normalizeSwissPhone(ordererPhoneInput.value.trim()));
     try{ localStorage.setItem('eventMode', document.getElementById('event-mode')?.checked? '1':'0'); }catch(e){}
     if(supplierNameInput)    localStorage.setItem('supplierName',supplierNameInput.value.trim());
-    if(supplierPhoneInput)   localStorage.setItem('supplierPhone',supplierPhoneInput.value.trim());
+    if(supplierPhoneInput)   localStorage.setItem('supplierPhone',normalizeSwissPhone(supplierPhoneInput.value.trim()));
     if(supplierEmailInput)   localStorage.setItem('supplierEmail',supplierEmailInput.value.trim());
     if(mapsApiKeyInput)      localStorage.setItem('mapsApiKey',mapsApiKeyInput.value.trim());
     if(orderDateInput)       localStorage.setItem('orderDate',orderDateInput.value||'');
@@ -1592,6 +1662,17 @@ document.addEventListener('DOMContentLoaded',()=>{
   sizeSelect?.addEventListener('change',updatePricePreview);
   glutenFreeCheckbox?.addEventListener('change',updatePricePreview);
   // (Pizza-Suche entfernt)
+
+  // Live-Formatierung/Validierung: Telefon & E-Mail
+  attachLivePhoneFormat(ordererPhoneInput);
+  attachLivePhoneFormat(supplierPhoneInput);
+  attachEmailValidation(supplierEmailInput);
+  // Live-Validierung: Bestellschluss <= Liefertermin
+  orderDateInput?.addEventListener('change', validateDeadlineVsOrder);
+  orderTimeInput?.addEventListener('change', validateDeadlineVsOrder);
+  deadlineDateInput?.addEventListener('change', validateDeadlineVsOrder);
+  deadlineTimeInput?.addEventListener('change', validateDeadlineVsOrder);
+  validateDeadlineVsOrder();
 
   orderForm?.addEventListener('submit', addOrder);
   // Übersicht: Toggle öffnen/schliessen

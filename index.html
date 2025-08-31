@@ -33,12 +33,22 @@
 
     <div class="grid-2">
       <div class="field-group">
-        <label for="order-date">Datum:</label>
+        <label for="order-date">Datum Lieferung:</label>
         <input type="date" id="order-date"/>
       </div>
       <div class="field-group">
-        <label for="order-time">Uhrzeit:</label>
+        <label for="order-time">Uhrzeit Lieferung:</label>
         <input type="time" id="order-time" value="12:00"/>
+      </div>
+
+      <!-- Bestellschluss direkt unter Lieferdatum/-uhrzeit -->
+      <div class="field-group">
+        <label for="deadline-date">Datum Bestellschluss:</label>
+        <input type="date" id="deadline-date"/>
+      </div>
+      <div class="field-group">
+        <label for="deadline-time">Uhrzeit Bestellschluss:</label>
+        <input type="time" id="deadline-time"/>
       </div>
 
       <div class="field-group">
@@ -88,40 +98,41 @@
         <input type="email" id="supplier-email" value="info@dieci.ch"/>
       </div>
 
-      <div class="field-group">
-        <label for="page-title-input">Seitentitel:</label>
-        <input type="text" id="page-title-input" placeholder="Seitentitel festlegen"/>
-      </div>
-      <div class="field-group">
-        <label for="page-description-input">Seitenbeschreibung:</label>
-        <input type="text" id="page-description-input" placeholder="Beschreibung festlegen"/>
-      </div>
-
-      <div class="field-group">
-        <label for="header-image-input">Header-Bild wählen:</label>
-        <input type="file" id="header-image-input" accept="image/*"/>
-      </div>
-      <div class="field-group">
-        <button type="button" id="reset-header-image" class="btn btn--secondary">Header-Bild zurücksetzen</button>
-      </div>
-
-      <!-- Pixabay Suche (optional) -->
       <div class="field-group field-group--full">
-        <h3 class="subheading">Header-Bild über Pixabay wählen (optional)</h3>
-      </div>
-      <div class="field-group">
-        <label for="pixabay-api-key">Pixabay API Key:</label>
-        <input type="text" id="pixabay-api-key" placeholder="Pixabay API Key eingeben"/>
-      </div>
-      <div class="field-group">
-        <label for="pixabay-search">Suche:</label>
-        <div class="pixabay-toolbar">
-          <input type="text" id="pixabay-search" placeholder="z. B. pizza, team, office"/>
-          <button type="button" id="pixabay-search-btn" class="btn btn--secondary">Suchen</button>
+        <h3 class="subheading">Seitentexte</h3>
+        <div class="grid-2">
+          <div class="field-group">
+            <label for="page-title-input">Seitentitel:</label>
+            <input type="text" id="page-title-input" placeholder="Seitentitel festlegen"/>
+          </div>
+          <div class="field-group">
+            <label for="page-description-input">Seitenbeschreibung:</label>
+            <textarea id="page-description-input" rows="3" placeholder="Beschreibung festlegen"></textarea>
+          </div>
         </div>
       </div>
-      <div class="field-group field-group--full">
-        <div id="pixabay-results" class="pixabay-grid" aria-live="polite"></div>
+
+      <div class="field-group field-group--full header-image-block">
+        <h3 class="subheading">Header-Bild</h3>
+        <div class="grid-2">
+          <div class="field-group">
+            <label for="header-image-input">Header-Bild wählen:</label>
+            <input type="file" id="header-image-input" accept="image/*"/>
+            <button type="button" id="reset-header-image" class="btn btn--secondary">Header-Bild zurücksetzen</button>
+          </div>
+          <div class="field-group">
+            <label for="pixabay-api-key">Pixabay API Key:</label>
+            <input type="text" id="pixabay-api-key" placeholder="Pixabay API Key eingeben"/>
+            <label for="pixabay-search">Pixabay Suche:</label>
+            <div class="pixabay-toolbar">
+              <input type="text" id="pixabay-search" placeholder="z. B. pizza, team, office"/>
+              <button type="button" id="pixabay-search-btn" class="btn btn--secondary">Suchen</button>
+            </div>
+          </div>
+        </div>
+        <div class="field-group field-group--full">
+          <div id="pixabay-results" class="pixabay-grid" aria-live="polite"></div>
+        </div>
       </div>
     </div>
 
@@ -132,16 +143,7 @@
       <button type="button" id="clear-orders-btn" class="btn btn--secondary">Alle Bestellungen löschen</button>
     </div>
 
-    <div class="grid-2">
-      <div class="field-group">
-        <label for="deadline-date">Bestellschluss Datum:</label>
-        <input type="date" id="deadline-date"/>
-      </div>
-      <div class="field-group">
-        <label for="deadline-time">Bestellschluss Uhrzeit:</label>
-        <input type="time" id="deadline-time"/>
-      </div>
-    </div>
+    <p id="deadline-hint" class="validation-hint" style="display:none;">Bestellschluss muss kleiner oder gleich dem Liefertermin sein.</p>
 
     <!-- Serverdaten -->
     <h3>Serverdaten (Google Sheet)</h3>
