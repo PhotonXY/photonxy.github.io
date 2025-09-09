@@ -1,363 +1,490 @@
-<!DOCTYPE html>
-<html lang="de-CH">
+<!doctype html>
+<html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="KAIZEN-Pizza-Day: Interne Bestellseite zum Erfassen, Verwalten und Exportieren von Pizza-Bestellungen (CH)." />
-  <meta name="theme-color" content="#e06a2c" />
-  <meta name="color-scheme" content="light dark" />
-  <title>KAIZEN-Pizza-Day – Pizza bestellen</title>
-  <link rel="stylesheet" href="style.css"/>
-  </head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Raum-Logbuch v2</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
 <body>
-  <header class="header">
-    <button id="theme-toggle" class="theme-toggle" aria-pressed="false" aria-label="Dark Mode umschalten">🌙</button>
-    <img id="header-image" data-default="pizza-illustration.png" src="pizza-illustration.png" alt="Illustration einer Pizza" class="header-image"/>
-    <h1 id="page-title">KAIZEN-Pizza-Day – Pizza bestellen 🍕</h1>
-    <p id="page-description">
-      Als kleines Dankeschön für euren Einsatz, eure Ideen und dafür, dass ihr unsere Firma jeden Tag ein Stück besser macht, spendiert euch die Geschäftsleitung eine Pizza.
-    </p>
+  <!-- Auth/Login Overlay -->
+  <div id="auth" class="auth-screen" aria-modal="true" role="dialog">
+    <div class="auth-card">
+      <h2 class="auth-title">Anmelden</h2>
+      <p class="auth-sub">Mit Benutzername und Passwort anmelden.</p>
+      <div class="row">
+        <div class="grow">
+          <label for="loginUser">Benutzer</label>
+          <input id="loginUser" type="text" placeholder="z. B. Demo Admin" autocomplete="username" list="loginUsers" />
+          <datalist id="loginUsers"></datalist>
+        </div>
+      </div>
+      <div class="row">
+        <div class="grow">
+          <label for="loginPass">Passwort</label>
+          <div class="input-group">
+            <input id="loginPass" type="password" placeholder="Passwort" autocomplete="current-password" />
+            <button id="btnEye" class="eye-btn" title="Passwort ein-/ausblenden">👁</button>
+          </div>
+          <small class="hint">Demo-Passwort: „test“</small>
+        </div>
+      </div>
+      <div class="auth-footer">
+        <label><input type="checkbox" id="remember"/> Eingeloggt bleiben</label>
+        <div class="auth-actions">
+          <button id="btnQuickAdmin" class="ghost">Admin</button>
+          <button id="btnQuickPruefer" class="ghost">Pruefer</button>
+          <button id="btnQuickUser" class="ghost">User</button>
+          <button id="btnDemo" class="ghost">Demo Start</button>
+          <button id="btnLogin">Anmelden</button>
+        </div>
+      </div>
+      <div id="loginMsg" class="muted" role="status"></div>
+    </div>
+  </div>
+
+  <header class="appbar">
+    <div class="brand">LogOne</div>
+    <div class="controls">
+      <div class="row">
+        <label>Datum</label>
+        <input id="appDate" type="date" />
+      </div>
+      <div class="row" id="profileBox" style="display:none">
+        <label>Profil</label>
+        <div class="user-badge" id="badge">—</div>
+      </div>
+      <button id="btnOpenLogin" class="ghost">Anmelden</button>
+      <button id="btnLogout" class="ghost" style="display:none">Logout</button>
+    </div>
   </header>
 
-  <!-- fuer alle sichtbare Bestell-Infos -->
-  <section class="order-info">
-    <p><strong>Bestelldatum:</strong> <span id="display-date">–</span>,
-       <strong>Lieferzeit:</strong> <span id="display-time">–</span></p>
-    <button id="toggle-admin" class="btn btn--secondary btn--third" aria-expanded="false">⚙️ Settings</button>
-  </section>
-
-  <!-- ADMIN - Einstellungen -->
-  <section id="admin-section" class="admin" style="display:none;">
-    <h2>Adminansicht &amp; Einstellungen</h2>
-    <p>Hier legst du Bestellzeitpunkt, Kontakt und Darstellung fest.</p>
-
-    <div class="grid-2">
-      <div class="field-group">
-        <label for="order-date">Datum Lieferung:</label>
-        <input type="date" id="order-date"/>
+  <main class="grid resp" id="mainGrid">
+    <section class="card" data-view="dashboard" data-card="dashboard" draggable="true">
+      <h2 class="section-title">Dashboard</h2>
+      <div class="tabs" id="anaTabs">
+        <button class="tab small active" data-ana="daily">Täglich</button>
+        <button class="tab small" data-ana="weekly">Wöchentlich</button>
+        <button class="tab small" data-ana="monthly">Monatlich</button>
       </div>
-      <div class="field-group">
-        <label for="order-time">Uhrzeit Lieferung:</label>
-        <input type="time" id="order-time" value="12:00"/>
-      </div>
-
-      <!-- Bestellschluss direkt unter Lieferdatum/-uhrzeit -->
-      <div class="field-group">
-        <label for="deadline-date">Datum Bestellschluss:</label>
-        <input type="date" id="deadline-date"/>
-      </div>
-      <div class="field-group">
-        <label for="deadline-time">Uhrzeit Bestellschluss:</label>
-        <input type="time" id="deadline-time"/>
-      </div>
-
-      <div class="field-group">
-        <label for="orderer-name">Besteller (Name):</label>
-        <input type="text" id="orderer-name" placeholder="Name des Bestellers"/>
-      </div>
-      <div class="field-group">
-        <label for="event-mode">Event:</label>
-        <label><input type="checkbox" id="event-mode"/> Preise in Nutzer-Ansicht verbergen</label>
-      </div>
-      <div class="field-group">
-        <label for="orderer-phone">Telefonnummer:</label>
-        <input type="tel" id="orderer-phone" placeholder="077 400 40 40"/>
-      </div>
-
-      <div class="field-group">
-        <label for="delivery-address">Lieferadresse:</label>
-        <input type="text" id="delivery-address" placeholder="Firma, Strasse, Ort"/>
-      </div>
-      <div class="field-group">
-        <label>Adresskarte:</label>
-        <div id="delivery-map" class="map-preview" style="display:none;" aria-hidden="true">
-          <img id="delivery-map-img" alt="Kartenansicht der Lieferadresse" loading="lazy" style="display:none;"/>
-          <iframe id="delivery-map-frame" title="Lieferadresse Karte" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+      <div class="ana-panel" data-ana-panel="daily">
+        <div class="bar">
+          <label>Datum</label>
+          <input id="anaDate" type="date" />
         </div>
+        <div class="kpi-grid" id="kpiDaily"></div>
+        <div class="table-wrap"><table id="tblDailyTop">
+          <thead><tr><th>Raum</th><th>Tätigkeit</th><th>Status</th></tr></thead>
+          <tbody></tbody></table></div>
       </div>
-      <div class="field-group">
-        <label for="maps-api-key">Google Maps Static API Key (optional):</label>
-        <input type="text" id="maps-api-key" placeholder="Für statische Karte (höhere Zuverlässigkeit)"/>
-      </div>
-
-      <div class="field-group field-group--full">
-        <h3 class="subheading">Lieferantendaten</h3>
-      </div>
-
-
-      <div class="field-group">
-        <label for="supplier-name">Lieferant (Name):</label>
-        <input type="text" id="supplier-name" placeholder="z. B. dieci Rapperswil"/>
-      </div>
-      <div class="field-group">
-        <label for="supplier-phone">Telefon Lieferant:</label>
-        <input type="tel" id="supplier-phone" value="055 221 80 10"/>
-      </div>
-      <div class="field-group">
-        <label for="supplier-email">E‑Mail Lieferant:</label>
-        <input type="email" id="supplier-email" value="info@dieci.ch"/>
-      </div>
-
-      <div class="field-group field-group--full">
-        <h3 class="subheading">Seitentexte</h3>
-        <div class="grid-2">
-          <div class="field-group">
-            <label for="page-title-input">Seitentitel:</label>
-            <input type="text" id="page-title-input" placeholder="Seitentitel festlegen"/>
-          </div>
-          <div class="field-group">
-            <label for="page-description-input">Seitenbeschreibung:</label>
-            <textarea id="page-description-input" rows="3" placeholder="Beschreibung festlegen"></textarea>
-          </div>
+      <div class="ana-panel" data-ana-panel="weekly" style="display:none">
+        <div class="bar">
+          <label>Woche</label>
+          <input id="anaWeek" type="week" />
         </div>
+        <div class="kpi-grid" id="kpiWeekly"></div>
+        <div class="table-wrap"><table id="tblWeeklyTop">
+          <thead><tr><th>Raum</th><th>Tätigkeit</th><th>Erledigt/Offen</th></tr></thead>
+          <tbody></tbody></table></div>
       </div>
-
-      <div class="field-group field-group--full header-image-block">
-        <h3 class="subheading">Header-Bild</h3>
-        <div class="grid-2">
-          <div class="field-group">
-            <label for="header-image-input">Header-Bild wählen:</label>
-            <input type="file" id="header-image-input" accept="image/*"/>
-            <button type="button" id="reset-header-image" class="btn btn--secondary">Header-Bild zurücksetzen</button>
-          </div>
-          <div class="field-group">
-            <label for="pixabay-api-key">Pixabay API Key:</label>
-            <input type="text" id="pixabay-api-key" placeholder="Pixabay API Key eingeben"/>
-            <label for="pixabay-search">Pixabay Suche:</label>
-            <div class="pixabay-toolbar">
-              <input type="text" id="pixabay-search" placeholder="z. B. pizza, team, office"/>
-              <button type="button" id="pixabay-search-btn" class="btn btn--secondary">Suchen</button>
-            </div>
-          </div>
+      <div class="ana-panel" data-ana-panel="monthly" style="display:none">
+        <div class="bar">
+          <label>Monat</label>
+          <input id="anaMonth" type="month" />
         </div>
-        <div class="field-group field-group--full">
-          <div id="pixabay-results" class="pixabay-grid" aria-live="polite"></div>
-        </div>
+        <div class="kpi-grid" id="kpiMonthly"></div>
+        <div class="table-wrap"><table id="tblMonthlyTop">
+          <thead><tr><th>Raum</th><th>Tätigkeit</th><th>Erledigt/Offen</th></tr></thead>
+          <tbody></tbody></table></div>
       </div>
-    </div>
-
-    <div class="field-row btn-grid">
-      <button type="button" id="save-admin-data" class="btn btn--secondary">Admin-Daten speichern</button>
-      <button type="button" id="clear-admin-data" class="btn btn--secondary">Admin-Daten löschen</button>
-      <button type="button" id="reset-order-datetime" class="btn btn--secondary">Datum/Uhrzeit zurücksetzen</button>
-      <button type="button" id="clear-orders-btn" class="btn btn--secondary">Alle Bestellungen löschen</button>
-    </div>
-
-    <p id="deadline-hint" class="validation-hint" style="display:none;">Bestellschluss muss kleiner oder gleich dem Liefertermin sein.</p>
-
-    <!-- Serverdaten -->
-    <h3>Serverdaten (Google Sheet)</h3>
-    <div class="remote-actions btn-grid">
-      <button id="load-remote-btn" class="btn btn--primary">Bestellungen vom Sheet laden</button>
-      <button id="download-remote-csv-btn" class="btn btn--secondary">CSV (vom Sheet) herunterladen</button>
-      <button id="change-secret" class="btn btn--secondary">Secret ändern</button>
-      <button id="refresh-remote-summary" class="btn btn--secondary">Übersicht aktualisieren</button>
-    </div>
-
-    <div id="remote-status" class="remote-status">–</div>
-    <div id="remote-progress" class="remote-progress" aria-hidden="true">
-      <div id="remote-progress-bar" class="remote-progress__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
-    </div>
-
-    <div class="remote-wrapper">
-      <table id="remote-orders-table" class="orders-table remote-table">
-        <thead>
-          <tr>
-            <th class="col-nr">Nr.</th>
-            <th>Name</th>
-            <th>Artikel</th>
-            <th>Grösse</th>
-            <th>Preis (CHF)</th>
-            <th>Aktion</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-
-      <div id="remote-total" class="remote-total"></div>
-
-      <textarea id="remote-summary-text" class="remote-summary-box" rows="8" placeholder="Zusammenfassung vom Google Sheet …"></textarea>
-      <div class="remote-summary-tools btn-grid">
-        <button id="copy-remote-summary" class="btn btn--secondary">Kopieren</button>
-        <button id="email-remote-summary" class="btn btn--secondary" aria-label="Bestellung senden">Senden</button>
-        <button id="print-remote-summary" class="btn btn--secondary" aria-label="Drucken">Print</button>
-        <button id="download-remote-csv-btn-2" class="btn btn--secondary">Export</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- Admin Login Modal -->
-  <div id="admin-login" class="modal" style="display:none;">
-    <div class="modal__content">
-      <h3>Admin-Login</h3>
-      <div class="password-field">
-        <label for="admin-password-input">Passwort:</label>
-        <div class="password-input-wrap">
-          <input type="password" id="admin-password-input" placeholder="Admin-Passwort" />
-          <button type="button" id="admin-password-toggle" class="btn btn--secondary btn-icon" aria-label="Passwort anzeigen/verbergen" title="Passwort anzeigen/verbergen">👁️</button>
-        </div>
-      </div>
-      <div class="field-row btn-grid">
-        <button id="admin-login-confirm" class="btn btn--primary">Anmelden</button>
-        <button id="admin-login-cancel" class="btn btn--secondary">Abbrechen</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- QR Modal -->
-  <div id="qr-modal" class="modal" style="display:none;">
-    <div class="modal__content">
-      <h3>Seite teilen</h3>
-      <div class="field-group">
-        <img id="qr-image" alt="QR‑Code für den Seitenlink" class="qr-image" style="display:block;max-width:80vw;max-height:60vh;margin:8px auto;border-radius:12px;"/>
-      </div>
-      <div class="field-group">
-        <input type="text" id="qr-link" readonly value="https://photonxy.github.io"/>
-      </div>
-      <div class="field-row btn-grid">
-        <button id="qr-copy" class="btn btn--secondary">Link kopieren</button>
-        <button id="qr-share" class="btn btn--secondary">Teilen</button>
-        <button id="qr-close" class="btn btn--secondary">Schliessen</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Formular fuer neue Bestellung -->
-  <section class="order-form">
-    <div class="form-header">
-      <h2>Bestellung aufgeben</h2>
-      <button id="qr-open" class="btn btn--secondary btn-icon qr-btn" aria-label="Seitenlink als QR anzeigen/teilen" title="Seitenlink teilen">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-          <!-- Drei Finder-Quadrate -->
-          <rect x="2" y="2" width="6" height="6" rx="1" ry="1" fill="none" stroke="currentColor" stroke-width="2"/>
-          <rect x="16" y="2" width="6" height="6" rx="1" ry="1" fill="none" stroke="currentColor" stroke-width="2"/>
-          <rect x="2" y="16" width="6" height="6" rx="1" ry="1" fill="none" stroke="currentColor" stroke-width="2"/>
-          <!-- Innen-Pixel (dezent) -->
-          <rect x="10" y="2" width="2" height="2" fill="currentColor"/>
-          <rect x="12.5" y="6" width="2.5" height="2.5" fill="currentColor"/>
-          <rect x="10" y="10" width="4" height="4" fill="currentColor"/>
-          <rect x="16" y="12" width="2" height="2" fill="currentColor"/>
-          <rect x="20" y="10" width="2" height="2" fill="currentColor"/>
-          <rect x="12" y="16" width="2" height="2" fill="currentColor"/>
-          <rect x="18" y="18" width="4" height="4" fill="currentColor"/>
-        </svg>
-      </button>
-    </div>
-
-    <p id="deadline-display" class="deadline-display" style="display:none;"></p>
-
-    <form id="pizza-form">
-      <div id="deadline-warning" class="deadline-warning" style="display:none;">
-        Der Bestellschluss ist erreicht – keine neuen Bestellungen mehr möglich.
-      </div>
-
-      <div class="field-group">
-        <label for="person-name">Dein Name:</label>
-        <input type="text" id="person-name" required placeholder="Name eingeben"/>
-      </div>
-
-      <div class="field-group order-type">
-        <label>Bestellart:</label>
-        <div class="order-type-choices">
-          <label class="choice choice--pizza"><input type="radio" name="order-type" value="pizza" checked/> Pizza</label>
-          <label class="choice choice--salad"><input type="radio" name="order-type" value="salad"/> Salat</label>
-          <label class="choice choice--menu"><input type="radio" name="order-type" value="menu"/> Menü</label>
-        </div>
-      </div>
-
-      <div class="field-group" id="pizza-selection">
-        <label for="pizza-select">Pizza auswählen:</label>
-        <select id="pizza-select"><option value="" disabled selected>Bitte Pizza wählen…</option></select>
-        <div id="pizza-ingredients" class="selection-details" style="display:none;"></div>
-      </div>
-
-      <div class="field-group" id="salad-selection" style="display:none;">
-        <label for="salad-select">Salat auswählen:</label>
-        <select id="salad-select"><option value="" disabled selected>Bitte Salat wählen…</option></select>
-        <div id="salad-ingredients" class="selection-details" style="display:none;"></div>
-      </div>
-
-      <div class="field-group" id="dressing-selection" style="display:none;">
-        <label for="dressing-select">Dressing wählen:</label>
-        <select id="dressing-select"><option value="" disabled selected>Bitte Dressing wählen…</option></select>
-      </div>
-
-      <div class="field-group" id="drink-selection" style="display:none;">
-        <label for="drink-select">Getränk wählen:</label>
-        <select id="drink-select"><option value="" disabled selected>Bitte Getränk wählen…</option></select>
-      </div>
-
-      <div class="field-group" id="size-group">
-        <label for="pizza-size">Grösse:</label>
-        <select id="pizza-size">
-          <option value="30cm" selected>Normal 30 cm</option>
-          <option value="24cm">Klein 24 cm</option>
-          <!-- <option value="40cm">Gross 40 cm</option> -->
+    </section>
+    <section class="card" data-view="today" data-card="today" draggable="true">
+      <h2 class="section-title">Heute fällig <span class="pill"><strong>HEUTE</strong><span id="today"></span></span></h2>
+      <div class="bar">
+        <select id="filterRoom">
+          <option value="">Alle Räume</option>
         </select>
+        <select id="filterDept">
+          <option value="">Alle Abteilungen</option>
+        </select>
+        <select id="filterStatus">
+          <option value="all">Alle Status</option>
+          <option value="open">Offen</option>
+          <option value="done">Erledigt</option>
+        </select>
+        <input type="search" id="search" placeholder="Suche..." />
+      </div>
+      <div class="table-wrap">
+        <table id="tblToday" class="gridtable">
+          <colgroup>
+            <col class="c-room" />
+            <col class="c-task" />
+            <col class="c-int" />
+            <col class="c-due" />
+            <col class="c-status" />
+            <col class="c-act" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Raum</th>
+              <th>Tätigkeit</th>
+              <th class="hide-sm">Intervall</th>
+              <th>Fällig am</th>
+              <th>Status</th>
+              <th>Aktion</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="cardsToday" class="card-list"></div>
+      <div class="footer-note">„Erledigt“ ist nur am heutigen Kalendertag möglich.</div>
+    </section>
+
+    <aside class="card" data-view="pruefen" data-card="pruefen" draggable="true">
+      <h2 class="section-title">Versäumt (Prüfung)</h2>
+      <div class="table-wrap">
+        <table id="tblOverdue" class="gridtable">
+          <colgroup>
+            <col class="c-room" />
+            <col class="c-task" />
+            <col class="c-int" />
+            <col class="c-due" />
+            <col class="c-status" />
+            <col class="c-act" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Raum</th>
+              <th>Tätigkeit</th>
+              <th class="hide-sm">Intervall</th>
+              <th>Fällig am</th>
+              <th>Status</th>
+              <th>Aktion</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="cardsOverdue" class="card-list"></div>
+    </aside>
+
+    <aside class="card" data-view="protokolle" data-card="protokolle" draggable="true">
+      <h3 class="section-title">Bestätigte Protokolle</h3>
+      <div class="bar">
+        <select id="logRoom"></select>
+        <input id="logSearch" type="text" placeholder="Suche in Protokollen …" />
+      </div>
+      <div class="table-wrap">
+        <table id="tblLogs">
+          <thead><tr><th>Zeit</th><th>Benutzer</th><th>Raum</th><th>Tätigkeit</th><th>Fälligkeits-Datum</th><th>Kommentar</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="cardsLogs" class="card-list"></div>
+
+    </aside>
+
+    <aside class="card" data-view="acks" data-card="acks" draggable="true">
+      <h3 class="section-title">Quittierungen (Versäumt)</h3>
+      <div class="bar">
+        <select id="ackRoom"></select>
+        <input id="ackSearch" type="text" placeholder="Suche in Quittierungen …" />
+      </div>
+      <div class="table-wrap">
+        <table id="tblAcks">
+          <thead><tr><th>Zeit</th><th>Prüfer</th><th>Raum</th><th>Tätigkeit</th><th>Fälligkeit</th><th>Typ</th><th>Details</th><th>Kommentar</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="cardsAcks" class="card-list"></div>
+    </aside>
+
+    <section class="card" id="admin" data-view="admin" data-card="admin" draggable="true" style="display:none">
+      <h2 class="section-title">Admin</h2>
+      <div id="adminGrid" class="admin-grid">
+        <div class="card" data-admin-card="rooms" draggable="true">
+          <h3 class="section-title">Räume</h3>
+          <div class="bar">
+            <input id="roomSearch" type="search" placeholder="Suche Räume …" />
+          </div>
+          <div class="grid cols-2">
+            <div><label>Name</label><input id="roomName" placeholder="z. B. Reinraum 101" /></div>
+            <div><label>Ort/Notiz</label><input id="roomNote" placeholder="EG Nord" /></div>
+          </div>
+          <div class="bar"><button id="btnAddRoom">Raum anlegen</button></div>
+          <div class="table-wrap"><table id="tblRooms"><thead><tr><th>Name</th><th>Notiz</th><th>Aktion</th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div class="card" data-admin-card="acts" draggable="true">
+          <h3 class="section-title">Tätigkeiten</h3>
+          <div class="grid cols-3">
+            <div><label>Raum</label><select id="actRoom"></select></div>
+            <div><label>Abteilung</label><select id="actDept"></select></div>
+            <div><label>Bezeichnung</label><input id="actTitle" placeholder="Oberflächenreinigung" /></div>
+            <div><label>Start</label><input id="actStart" type="date" /></div>
+            <div class="grow"><label>Beschreibung</label><input id="actDesc" placeholder="Kurze Anweisung" /></div>
+            <div><label>Intervall</label><select id="actType"><option value="daily">täglich</option><option value="weekly">wöchentlich</option><option value="monthly">monatlich</option><option value="quarterly">quartalsweise</option><option value="yearly">jährlich</option></select></div>
+            <div><label>Alle (N)</label><input id="actEvery" type="number" min="1" value="1" /></div>
+            <div id="weeklyBox"><label>Wochentag</label><select id="actWeekday"><option value="1">Montag</option><option value="2">Dienstag</option><option value="3">Mittwoch</option><option value="4">Donnerstag</option><option value="5">Freitag</option><option value="6">Samstag</option><option value="7">Sonntag</option></select></div>
+            <div id="monthDayBox"><label>Tag im Monat</label><input id="actMonthDay" type="number" min="1" max="31" value="1" /></div>
+            <div id="yearMonthBox"><label>Monat</label><input id="actYearMonth" type="number" min="1" max="12" value="1" /></div>
+          </div>
+          <div class="bar"><button id="btnAddAct">Tätigkeit anlegen</button></div>
+          <div class="bar">
+            <select id="actFilterRoom"><option value="">Alle Räume</option></select>
+            <select id="actFilterDept"><option value="">Alle Abteilungen</option></select>
+            <input id="actSearch" type="search" placeholder="Suche Tätigkeiten …" />
+          </div>
+          <div class="table-wrap"><table id="tblActs">
+            <thead>
+              <tr>
+                <th>Raum</th>
+                <th>Abteilung</th>
+                <th>Tätigkeit</th>
+                <th>Intervall</th>
+                <th>Start</th>
+                <th>Nächste</th>
+                <th>Aktion</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table></div>
+        </div>
+      
+      <div class="card" data-admin-card="users" draggable="true">
+        <h3 class="section-title">Benutzerverwaltung</h3>
+        <div class="bar">
+          <select id="userRoleFilter">
+            <option value="">Alle Rollen</option>
+            <option value="user">User</option>
+            <option value="pruefer">Pruefer</option>
+            <option value="admin">Admin</option>
+          </select>
+          <input id="userSearch" type="search" placeholder="Suche Benutzer …" />
+        </div>
+        <div class="grid cols-3">
+          <div><label>Name</label><input id="userName" placeholder="z. B. Max Muster" /></div>
+          <div><label>Rolle</label><select id="userRole"><option value="user">User</option><option value="admin">Admin</option><option value="pruefer">Pruefer</option></select></div>
+          <div><label>Abteilung</label><select id="userDept"></select></div>
+          <div><label>Passwort (optional)</label>
+          <div class="input-group"><input id="userPass" type="password" placeholder="Passwort setzen"/><button id="btnEyeUser" class="eye-btn">👁</button></div><small class="hint">Ohne Eingabe: Erst-Login mit „test“.</small></div>
+          <div class="row" style="align-self:end; gap:8px;"><button id="btnAddUser">Benutzer anlegen</button></div>
+        </div>
+        <div class="table-wrap"><table id="tblUsers"><thead><tr><th>Name</th><th>Rolle</th><th>Aktion</th></tr></thead><tbody></tbody></table></div>
       </div>
 
-      <div class="field-group" id="gluten-free-group" style="display:none;">
-        <label><input type="checkbox" id="gluten-free"/> Glutenfrei (+1 CHF)</label>
+      <div class="card" data-admin-card="depts" draggable="true">
+        <h3 class="section-title">Abteilungen</h3>
+        <div class="bar">
+          <input id="deptSearch" type="search" placeholder="Suche Abteilungen …" />
+        </div>
+        <div class="grid cols-2">
+          <div><label>Name</label><input id="deptName" placeholder="z. B. Produktion" /></div>
+          <div><label>Beschreibung</label><input id="deptDesc" placeholder="Kurze Beschreibung" /></div>
+        </div>
+        <div class="bar"><button id="btnAddDept">Abteilung anlegen</button></div>
+        <div class="table-wrap">
+          <table id="tblDepts">
+            <thead><tr><th>Name</th><th>Beschreibung</th><th>Aktion</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
+      </div> <!-- /#adminGrid -->
+    </section>
+  </main>
 
-      <div class="field-group">
-        <label for="comments">Bemerkungen (optional):</label>
-        <input type="text" id="comments" placeholder="z. B. ohne Zwiebeln"/>
+  <nav class="bottom-nav" id="bottomNav" aria-label="Hauptnavigation">
+    <button class="tab" data-tab="dashboard">Dashboard</button>
+    <button class="tab active" data-tab="today">Heute</button>
+    <button class="tab" data-tab="pruefen">Prüfen</button>
+    <button class="tab" data-tab="protokolle">Protokolle</button>
+    <button class="tab" data-tab="acks">Quittierungen</button>
+    <button class="tab" data-tab="admin">Admin</button>
+  </nav>
+
+  <div id="sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-content">
+      <div class="sheet-header">
+        <div class="sheet-title" id="sheetTitle">Kommentar</div>
+        <button class="sheet-close ghost" id="sheetClose">Schließen</button>
       </div>
-
-      <p id="price-preview" class="price-preview" aria-live="polite" style="display:none;">Preis: –</p>
-
-      <button type="submit" class="btn btn--orange btn--half">Zur Bestellung hinzufügen</button>
-    </form>
-  </section>
-
-  <!-- lokale Uebersicht -->
-  <section class="orders-overview">
-    <h2>Meine Bestellungen</h2>
-    <div class="table-wrap">
-      <table id="orders-table" class="orders-table">
-        <thead>
-          <tr>
-            <th>Nr.</th>
-            <th>Name</th>
-            <th>Artikel</th>
-            <th>Grösse</th>
-            <th>Preis (CHF)</th>
-            <th>Aktion</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <div class="sheet-body">
+        <div class="muted" id="sheetMeta"></div>
+        <textarea id="sheetTextarea" class="comment-textarea" placeholder="Kommentar eingeben…"></textarea>
+        <div id="sheetHistory" class="comment-history"></div>
+      </div>
+      <div class="sheet-actions">
+        <button id="sheetPrimary" class="comment-btn">Speichern</button>
+        <button id="sheetSecondary" class="comment-btn quit-btn" style="display:none">Quittieren</button>
+      </div>
     </div>
-    <div id="orders-summary" class="total"></div>
-    <div class="button-row btn-grid">
-      <button id="generate-summary" class="btn btn--secondary">Übersicht</button>
-    </div>
-  </section>
+  </div>
 
-  <!-- generierte Zusammenfassung -->
-  <section id="summary-output" class="summary-output" style="display:none;">
-    <h2>Bestellübersicht</h2>
-    <p>Diese Übersicht fasst alle Bestellungen zusammen. Kopiere den Text oder sende ihn direkt per E-Mail.</p>
-    <textarea id="summary-text" rows="10" readonly></textarea>
-    <div class="button-row btn-grid">
-      <button id="copy-summary" class="btn btn--secondary">Kopieren</button>
-      <button id="email-summary-2" class="btn btn--secondary" aria-label="Bestellung senden">Senden</button>
-      <button id="print-summary-2" class="btn btn--secondary" aria-label="Drucken">Print</button>
-      <button id="download-csv-2" class="btn btn--secondary">Export</button>
-    </div>
-  </section>
+  <script src="app.js"></script>
+  <script>
+    // Abteilungsverwaltung (mit Duplikat-Schutz und Rendering)
+    const departments = {
+        items: [],
+        
+        add(name, description) {
+            const nm = String(name||'').trim();
+            if (!nm) return null;
+            // Duplikate vermeiden (case-insensitive)
+            const existing = this.items.find(d => d.name.trim().toLowerCase() === nm.toLowerCase());
+            if (existing) {
+                // Beschreibung ggf. aktualisieren
+                if (description && description.trim()) existing.description = description.trim();
+                this.save();
+                return existing;
+            }
+            const id = (typeof uuid === 'function') ? uuid() : (Date.now()+""+Math.random().toString(16).slice(2));
+            const dept = { id, name: nm, description: (description||'').trim() };
+            this.items.push(dept);
+            this.save();
+            return dept;
+        },
+        
+        save() {
+            localStorage.setItem('departments', JSON.stringify(this.items));
+        },
+        
+        load() {
+            const stored = localStorage.getItem('departments');
+            const arr = stored ? JSON.parse(stored) : [];
+            // Normalize + Duplikate nach Name entfernen
+            const seen = new Set();
+            this.items = arr.filter(d => d && d.name)
+                .map(d => ({ id: String(d.id || (typeof uuid==='function'? uuid(): Date.now())), name: String(d.name).trim(), description: (d.description||'').trim() }))
+                .filter(d => {
+                    const key = d.name.toLowerCase();
+                    if (seen.has(key)) return false;
+                    seen.add(key); return true;
+                });
+            this.save();
+        },
+        
+        delete(id) {
+            this.items = this.items.filter(d => String(d.id) !== String(id));
+            this.save();
+        }
+    };
 
-  <footer class="footer">
-    <p>
-      <p>Inhalte basieren auf <a href="https://www.dieci.ch/de/menu" target="_blank" rel="noopener">dieci.ch</a> (Stand: 29.08.2025); Änderungen vorbehalten.</p>
-      &copy; 2025 Stephan Stucki
-    </p>
-  </footer>
+    // Tabelle der Abteilungen rendern
+    function updateDepartmentTables() {
+        const tbody = document.querySelector('#tblDepts tbody');
+        if (!tbody) return;
+        if (!Array.isArray(departments.items)) departments.items = [];
+        tbody.innerHTML = departments.items.map(d => `
+            <tr id="dept-${d.id}">
+              <td>${d.name}</td>
+              <td class="muted">${d.description||''}</td>
+              <td>
+                <span class="link" data-edit-dept="${d.id}">Bearbeiten</span>
+                 | <span class="dangerlink" data-del-dept="${d.id}">löschen</span>
+              </td>
+            </tr>
+        `).join('') || '<tr><td colspan="3" class="muted">Keine Abteilungen.</td></tr>';
+        // Delegierter Click-Handler für Edit/Löschen/Speichern/Abbrechen
+        if (!tbody._deptBound) {
+            tbody.addEventListener('click', (e) => {
+                const delEl = e.target.closest('[data-del-dept]');
+                if (delEl) {
+                    const id = delEl.getAttribute('data-del-dept');
+                    const d = departments.items.find(x => String(x.id) === id);
+                    if (!d) return;
+                    if (!confirm(`Abteilung "${d.name}" wirklich löschen?`)) return;
+                    departments.delete(id);
+                    updateDepartmentTables();
+                    updateDepartmentSelects();
+                    if (typeof renderAdmin === 'function') renderAdmin();
+                    return;
+                }
+                const editEl = e.target.closest('[data-edit-dept]');
+                if (editEl) {
+                    const id = editEl.getAttribute('data-edit-dept');
+                    const d = departments.items.find(x => String(x.id) === id);
+                    if (!d) return;
+                    const tr = document.getElementById(`dept-${id}`);
+                    if (!tr) return;
+                    const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/\"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                    tr.innerHTML = `
+                      <td><input id=\"ed-name-${id}\" value=\"${esc(d.name)}\"/></td>
+                      <td><input id=\"ed-desc-${id}\" value=\"${esc(d.description||'')}\"/></td>
+                      <td>
+                        <button class=\"small-button\" data-save-dept=\"${id}\">Speichern</button>
+                        <button class=\"small-button ghost\" data-cancel-dept=\"${id}\">Abbrechen</button>
+                      </td>`;
+                    return;
+                }
+                const saveEl = e.target.closest('[data-save-dept]');
+                if (saveEl) {
+                    const id = saveEl.getAttribute('data-save-dept');
+                    const d = departments.items.find(x => String(x.id) === id);
+                    const tr = document.getElementById(`dept-${id}`);
+                    if (!d || !tr) return;
+                    const name = (tr.querySelector(`#ed-name-${id}`)?.value||'').trim();
+                    const desc = (tr.querySelector(`#ed-desc-${id}`)?.value||'').trim();
+                    if (!name) { alert('Name fehlt'); return; }
+                    const exists = departments.items.find(x => String(x.id) !== id && String(x.name).trim().toLowerCase() === name.toLowerCase());
+                    if (exists) { alert('Abteilung mit diesem Namen existiert bereits.'); return; }
+                    d.name = name; d.description = desc; departments.save();
+                    updateDepartmentTables();
+                    updateDepartmentSelects();
+                    if (typeof renderAdmin === 'function') renderAdmin();
+                    return;
+                }
+                const cancelEl = e.target.closest('[data-cancel-dept]');
+                if (cancelEl) {
+                    updateDepartmentTables();
+                    return;
+                }
+            });
+            tbody._deptBound = true;
+        }
+    }
 
-  <!-- Toast -->
-  <div id="toast" class="toast" role="status" aria-live="polite" style="display:none;"></div>
+    // Hilfsfunktion zum Aktualisieren aller Abteilungs-Dropdowns
+    function updateDepartmentSelects() {
+        const selects = ['userDept', 'actDept'];
+        selects.forEach(id => {
+            const select = document.getElementById(id);
+            if (!select) return;
+            const cur = select.value;
+            select.innerHTML = '<option value="">Bitte wählen...</option>' +
+                departments.items.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+            // Auswahl beibehalten, falls möglich
+            if (cur) select.value = cur;
+        });
+    }
 
-  <script src="script.js"></script>
+    // Filtern der Tätigkeiten nach Abteilung (falls benötigt)
+    function filterActivitiesByDepartment(activities) {
+        const currentUser = getCurrentUser();
+        if (currentUser.role === 'admin') return activities;
+        return activities.filter(activity => activity.department === currentUser.department);
+    }
+
+    // Event-Handler für „Abteilung anlegen“
+    document.getElementById('btnAddDept').addEventListener('click', () => {
+        const name = document.getElementById('deptName').value;
+        const desc = document.getElementById('deptDesc').value;
+        if (!name || !name.trim()) return;
+        departments.add(name, desc);
+        document.getElementById('deptName').value = '';
+        document.getElementById('deptDesc').value = '';
+        updateDepartmentTables();
+        updateDepartmentSelects();
+        if (typeof renderAdmin === 'function') renderAdmin();
+    });
+
+    // Beim Laden der Anwendung: Departments laden, UI aktualisieren und Admin neu rendern
+    window.addEventListener('load', () => {
+        departments.load();
+        updateDepartmentTables();
+        updateDepartmentSelects();
+        if (typeof renderAdmin === 'function') renderAdmin();
+    });
+  </script>
 </body>
 </html>
