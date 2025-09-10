@@ -1,2 +1,0 @@
-# photonxy.github.io
-LogOne
