@@ -1,2 +1,2 @@
 # photonxy.github.io
-Pizza Bestellen
+LogOne
